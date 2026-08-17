@@ -341,16 +341,20 @@ class AppStore {
     if (!auth) return;
 
     onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser && firebaseUser.email) {
-        const email = firebaseUser.email.toLowerCase().trim();
-        if (isDiuEmail(email)) {
+      if (firebaseUser) {
+        const email = (firebaseUser.email || '').trim();
+        const isVerified = Boolean(firebaseUser.emailVerified);
+
+        if (isDiuEmail(email) && isVerified) {
           const username = extractUsernameFromEmail(email);
           await this.syncFirebaseUserProfile(firebaseUser.uid, email, username);
         } else {
+          // Unauthorized: Immediately sign out without creating or updating any Firestore documents
           if (auth) {
-            await firebaseSignOut(auth);
+            await firebaseSignOut(auth).catch(() => {});
           }
           this.currentUser = null;
+          this.clearFirestoreListeners();
           this.persist();
           this.notify();
         }
@@ -539,16 +543,24 @@ class AppStore {
     if (isFirebaseConfigured && auth) {
       try {
         const cred = await signInWithPopup(auth, googleProvider);
-        const email = cred.user.email?.toLowerCase().trim() || '';
+        const user = cred.user;
+        const email = (user.email || '').trim();
+        const isVerified = Boolean(user.emailVerified);
 
-        // Strict DIU Domain Verification
-        if (!isDiuEmail(email)) {
-          await firebaseSignOut(auth);
-          return { error: 'Access restricted. Please sign in with your @diu.edu.bd university Google account.' };
+        // Strict DIU Domain & Verification Check
+        if (!email || !isVerified || !isDiuEmail(email)) {
+          await firebaseSignOut(auth).catch(() => {});
+          this.currentUser = null;
+          this.clearFirestoreListeners();
+          this.persist();
+          this.notify();
+          return {
+            error: 'Please sign in with your verified DIU student email (@diu.edu.bd).',
+          };
         }
 
         const username = extractUsernameFromEmail(email);
-        await this.syncFirebaseUserProfile(cred.user.uid, email, username);
+        await this.syncFirebaseUserProfile(user.uid, email, username);
         return { user: this.currentUser || undefined };
       } catch (e: unknown) {
         const err = e as Error;
@@ -563,13 +575,13 @@ class AppStore {
   }
 
   public signInWithGoogleEmail(email: string): { user?: User; error?: string } {
-    const trimmed = email.trim().toLowerCase();
+    const trimmed = email.trim();
     if (!isDiuEmail(trimmed)) {
-      return { error: 'Please sign in with your DIU university email (@diu.edu.bd).' };
+      return { error: 'Please sign in with your verified DIU student email (@diu.edu.bd).' };
     }
 
     const username = extractUsernameFromEmail(trimmed);
-    let existing = this.users.find((u) => u.email.toLowerCase() === trimmed);
+    let existing = this.users.find((u) => u.email.toLowerCase() === trimmed.toLowerCase());
 
     const isHostOfAnyGroup = this.groups.some(
       (g) => g.host_id === existing?.id && g.status === 'active'
@@ -579,7 +591,7 @@ class AppStore {
     if (!existing) {
       existing = {
         id: `usr-${username.replace(/[^a-zA-Z0-9-]/g, '')}-${Date.now().toString(36)}`,
-        email: trimmed,
+        email: trimmed.toLowerCase(),
         username,
         role: 'student',
         current_group_id: null,
@@ -587,6 +599,7 @@ class AppStore {
       };
       this.users.push(existing);
     } else {
+      existing.username = username; // Immutable derived username
       existing.role = dynamicRole;
     }
 

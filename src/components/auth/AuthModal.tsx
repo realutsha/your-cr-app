@@ -45,7 +45,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
     }
 
     if (!isDiuEmail(trimmed)) {
-      setErrorMsg('Please sign in with your DIU university email (@diu.edu.bd).');
+      setErrorMsg('Please sign in with your verified DIU student email (@diu.edu.bd).');
       return;
     }
 

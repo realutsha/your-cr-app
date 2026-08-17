@@ -1,24 +1,27 @@
 export const DIU_EMAIL_DOMAIN = '@diu.edu.bd';
+export const DIU_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@diu\.edu\.bd$/i;
 
 /**
- * Validates if the email belongs strictly to the @diu.edu.bd university domain
+ * Validates if the email belongs strictly and exactly to the @diu.edu.bd university domain
+ * (Case-insensitive, rejects subdomains, prefixes, or attacker suffixes like .attacker.com)
  */
 export function isDiuEmail(email: string): boolean {
   if (!email) return false;
-  const trimmed = email.trim().toLowerCase();
-  return trimmed.endsWith(DIU_EMAIL_DOMAIN) && trimmed.length > DIU_EMAIL_DOMAIN.length;
+  const trimmed = email.trim();
+  return DIU_EMAIL_REGEX.test(trimmed);
 }
 
 /**
  * Automatically extracts the student or faculty username prefix from the email.
- * E.g. "251-35-118@diu.edu.bd" -> "251-35-118"
+ * E.g. "251-35-114@diu.edu.bd" -> "251-35-114"
  */
 export function extractUsernameFromEmail(email: string): string {
-  const trimmed = email.trim().toLowerCase();
+  const trimmed = email.trim();
   if (!isDiuEmail(trimmed)) {
-    throw new Error('Please use your DIU university email.');
+    throw new Error('Please sign in with your verified DIU student email (@diu.edu.bd).');
   }
-  return trimmed.replace(DIU_EMAIL_DOMAIN, '');
+  const atIndex = trimmed.lastIndexOf('@');
+  return trimmed.substring(0, atIndex).toLowerCase();
 }
 
 /**
