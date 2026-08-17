@@ -7,7 +7,7 @@ export const DIU_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@diu\.edu\.bd$/i;
  */
 export function isDiuEmail(email: string): boolean {
   if (!email) return false;
-  const trimmed = email.trim();
+  const trimmed = email.trim().toLowerCase();
   return DIU_EMAIL_REGEX.test(trimmed);
 }
 
@@ -16,12 +16,11 @@ export function isDiuEmail(email: string): boolean {
  * E.g. "251-35-114@diu.edu.bd" -> "251-35-114"
  */
 export function extractUsernameFromEmail(email: string): string {
-  const trimmed = email.trim();
+  const trimmed = email.trim().toLowerCase();
   if (!isDiuEmail(trimmed)) {
-    throw new Error('Please sign in with your verified DIU student email (@diu.edu.bd).');
+    throw new Error('Only verified DIU accounts (@diu.edu.bd) can access ClassMate.');
   }
-  const atIndex = trimmed.lastIndexOf('@');
-  return trimmed.substring(0, atIndex).toLowerCase();
+  return trimmed.replace('@diu.edu.bd', '');
 }
 
 /**

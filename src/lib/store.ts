@@ -30,7 +30,6 @@ import {
 } from './auth';
 import type {
   User,
-  Role,
   Group,
   GroupMember,
   JoinRequest,
@@ -539,74 +538,42 @@ class AppStore {
     return this.currentUser;
   }
 
-  public async signInWithGoogle(): Promise<{ user?: User; error?: string; isDevFallback?: boolean }> {
-    if (isFirebaseConfigured && auth) {
-      try {
-        const cred = await signInWithPopup(auth, googleProvider);
-        const user = cred.user;
-        const email = (user.email || '').trim();
-        const isVerified = Boolean(user.emailVerified);
+  public async signInWithGoogle(): Promise<{ user?: User; error?: string }> {
+    if (!isFirebaseConfigured || !auth) {
+      return { error: 'Firebase Authentication is not configured.' };
+    }
 
-        // Strict DIU Domain & Verification Check
-        if (!email || !isVerified || !isDiuEmail(email)) {
-          await firebaseSignOut(auth).catch(() => {});
-          this.currentUser = null;
-          this.clearFirestoreListeners();
-          this.persist();
-          this.notify();
-          return {
-            error: 'Please sign in with your verified DIU student email (@diu.edu.bd).',
-          };
-        }
+    try {
+      const cred = await signInWithPopup(auth, googleProvider);
+      const user = cred.user;
+      const email = (user.email || '').trim().toLowerCase();
+      const isVerified = Boolean(user.emailVerified);
 
-        const username = extractUsernameFromEmail(email);
-        await this.syncFirebaseUserProfile(user.uid, email, username);
-        return { user: this.currentUser || undefined };
-      } catch (e: unknown) {
-        const err = e as Error;
-        // In offline environments or if popup is blocked in sandbox, return graceful dev fallback
-        if (err.message && (err.message.includes('popup') || err.message.includes('network') || err.message.includes('auth/'))) {
-          return { isDevFallback: true };
-        }
-        return { error: err.message || 'Google sign-in failed' };
+      // Strict DIU Domain & Google Email Verification Check
+      if (!email || !isVerified || !isDiuEmail(email)) {
+        await firebaseSignOut(auth).catch(() => {});
+        this.currentUser = null;
+        this.clearFirestoreListeners();
+        this.persist();
+        this.notify();
+        return {
+          error: 'Only verified DIU accounts (@diu.edu.bd) can access ClassMate.',
+        };
       }
+
+      const username = extractUsernameFromEmail(email);
+      await this.syncFirebaseUserProfile(user.uid, email, username);
+      return { user: this.currentUser || undefined };
+    } catch (e: unknown) {
+      const err = e as Error;
+      if (err.message && err.message.includes('auth/popup-closed-by-user')) {
+        return { error: 'Sign-in was cancelled.' };
+      }
+      if (err.message && err.message.includes('auth/popup-blocked')) {
+        return { error: 'Popup blocked by browser. Please allow popups for Google sign-in.' };
+      }
+      return { error: err.message || 'Google sign-in failed. Please try again.' };
     }
-    return { isDevFallback: true };
-  }
-
-  public signInWithGoogleEmail(email: string): { user?: User; error?: string } {
-    const trimmed = email.trim();
-    if (!isDiuEmail(trimmed)) {
-      return { error: 'Please sign in with your verified DIU student email (@diu.edu.bd).' };
-    }
-
-    const username = extractUsernameFromEmail(trimmed);
-    let existing = this.users.find((u) => u.email.toLowerCase() === trimmed.toLowerCase());
-
-    const isHostOfAnyGroup = this.groups.some(
-      (g) => g.host_id === existing?.id && g.status === 'active'
-    );
-    const dynamicRole: Role = isHostOfAnyGroup ? 'cr' : existing?.role || 'student';
-
-    if (!existing) {
-      existing = {
-        id: `usr-${username.replace(/[^a-zA-Z0-9-]/g, '')}-${Date.now().toString(36)}`,
-        email: trimmed.toLowerCase(),
-        username,
-        role: 'student',
-        current_group_id: null,
-        created_at: new Date().toISOString(),
-      };
-      this.users.push(existing);
-    } else {
-      existing.username = username; // Immutable derived username
-      existing.role = dynamicRole;
-    }
-
-    this.currentUser = existing;
-    this.persist();
-    this.notify();
-    return { user: existing };
   }
 
   public async signOut() {
