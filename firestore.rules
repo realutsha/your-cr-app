@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isDiuUser() {
+      return isAuthenticated() && request.auth.token.email.matches('.*@diu[.]edu[.]bd$');
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isGroupHost(groupId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid;
+    }
+
+    function userHasNoGroup(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.current_group_id == null;
+    }
+
+    // 1. USERS COLLECTION (Permanent Profiles - Never deleted by 4-month expiration)
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if false; // Permanent identity preservation
+    }
+
+    // 2. GROUPS COLLECTION
+    match /groups/{groupId} {
+      allow read: if isAuthenticated();
+      // Only DIU users who do NOT have an active group can create a new group
+      allow create: if isDiuUser() && 
+                       request.resource.data.host_id == request.auth.uid &&
+                       userHasNoGroup(request.auth.uid);
+      // Strictly only the CR can update group details or delete the group
+      allow update, delete: if isGroupHost(groupId);
+    }
+
+    // 3. GROUP MEMBERS COLLECTION
+    match /groupMembers/{memberId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        (request.resource.data.user_id == request.auth.uid && userHasNoGroup(request.auth.uid)) ||
+        isGroupHost(request.resource.data.group_id)
+      );
+      allow update, delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.user_id || 
+        isGroupHost(resource.data.group_id)
+      );
+    }
+
+    // 4. JOIN REQUESTS COLLECTION
+    match /joinRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.user_id == request.auth.uid || 
+        isGroupHost(resource.data.group_id)
+      );
+      allow create: if isDiuUser() && 
+                       request.resource.data.user_id == request.auth.uid && 
+                       userHasNoGroup(request.auth.uid);
+      allow update: if isGroupHost(resource.data.group_id);
+      allow delete: if request.auth.uid == resource.data.user_id || isGroupHost(resource.data.group_id);
+    }
+
+    // 5. COURSES COLLECTION
+    match /courses/{courseId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isGroupHost(request.resource.data.group_id || resource.data.group_id);
+    }
+
+    // 6. ACADEMIC UPDATES COLLECTION (Quiz, Lab, Presentation, Assignment)
+    match /updates/{updateId} {
+      allow read: if isAuthenticated();
+      // Strictly only the CR can post, edit, or delete updates
+      allow create, update, delete: if isGroupHost(request.resource.data.group_id || resource.data.group_id);
+    }
+
+    // 7. UPDATE VIEWS (Read Receipts)
+    match /updateViews/{viewId} {
+      allow read: if isAuthenticated();
+      // Students can only create their own view record
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      // View receipts are immutable audit logs
+      allow update, delete: if false;
+    }
+
+    // 8. DEVICE TOKENS (FCM)
+    match /devices/{deviceId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == (request.resource.data.user_id || resource.data.user_id);
+    }
+  }
+}

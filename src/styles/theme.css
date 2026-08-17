@@ -1,0 +1,114 @@
+/* ==============================================================================
+   DIU Class Announcement Platform — iOS 26 Design System (Light & Dark)
+   Ultra-refined • Quiet Hierarchy • Subtle Hairlines • Dual Themes
+   ============================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-head: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --nav-h: 58px;
+
+  /* Default Dark Tokens */
+  --c-bg: #0A0B0E;
+  --c-card-bg: #121318;
+  --c-card-bg-active: #181920;
+  --c-card-subtle: rgba(255, 255, 255, 0.03);
+  --c-hairline: rgba(255, 255, 255, 0.07);
+  --c-hairline-strong: rgba(255, 255, 255, 0.12);
+  --c-text: #F4F5F7;
+  --c-text-soft: rgba(244, 245, 247, 0.58);
+  --c-text-faint: rgba(244, 245, 247, 0.34);
+  --c-accent: #7C93E8;
+  --c-accent-bg: rgba(124, 147, 232, 0.12);
+  --c-accent-glow: rgba(124, 147, 232, 0.20);
+  --c-danger: #E8756A;
+  --c-danger-bg: rgba(232, 117, 106, 0.12);
+  --c-success: #5CD694;
+  --c-sheet-bg: #0A0B0E;
+  --c-toast-bg: #1B1C21;
+  --c-google-btn-bg: #16171B;
+  --c-backdrop: rgba(0, 0, 0, 0.68);
+  --c-code-pill-bg: #1A1B22;
+}
+
+[data-theme='light'] {
+  /* Intentional Light Tokens */
+  --c-bg: #F6F7FA;
+  --c-card-bg: #FFFFFF;
+  --c-card-bg-active: #F1F3F7;
+  --c-card-subtle: rgba(0, 0, 0, 0.03);
+  --c-hairline: rgba(0, 0, 0, 0.08);
+  --c-hairline-strong: rgba(0, 0, 0, 0.14);
+  --c-text: #121316;
+  --c-text-soft: #5C606C;
+  --c-text-faint: #8E92A0;
+  --c-accent: #4A63D6;
+  --c-accent-bg: rgba(74, 99, 214, 0.10);
+  --c-accent-glow: rgba(74, 99, 214, 0.16);
+  --c-danger: #D9483B;
+  --c-danger-bg: rgba(217, 72, 59, 0.09);
+  --c-success: #2E9C62;
+  --c-sheet-bg: #FFFFFF;
+  --c-toast-bg: #1F2128;
+  --c-google-btn-bg: #FFFFFF;
+  --c-backdrop: rgba(18, 19, 24, 0.45);
+  --c-code-pill-bg: #EAECEF;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+/* Hide native scrollbars for ultra-clean feel */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+input, textarea, button, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--c-text-faint);
+  opacity: 1;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+.truncate-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

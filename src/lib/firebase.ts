@@ -1,0 +1,185 @@
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  type Auth,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import {
+  getFirestore,
+  type Firestore,
+} from 'firebase/firestore';
+import {
+  getMessaging,
+  getToken,
+  onMessage,
+  isSupported,
+  type Messaging,
+} from 'firebase/messaging';
+
+// Read Firebase Web App configuration from environment variables
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '',
+};
+
+export const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
+
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  firebaseConfig.projectId &&
+  firebaseConfig.messagingSenderId &&
+  firebaseConfig.appId
+);
+
+// Initialize Firebase App
+export const app: FirebaseApp | null = isFirebaseConfigured
+  ? getApps().length === 0
+    ? initializeApp(firebaseConfig)
+    : getApp()
+  : null;
+
+// Initialize Firebase Authentication
+export const auth: Auth | null = app ? getAuth(app) : null;
+
+// Initialize Cloud Firestore
+export const db: Firestore | null = app ? getFirestore(app) : null;
+
+// Google Auth Provider setup with DIU domain hint
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  hd: 'diu.edu.bd',
+  prompt: 'select_account',
+});
+
+let messagingPromise: Promise<Messaging | null> | null = null;
+
+export async function getFirebaseMessaging(): Promise<Messaging | null> {
+  if (typeof window === 'undefined' || !app) return null;
+
+  if (!messagingPromise) {
+    messagingPromise = isSupported().then((supported) => {
+      if (supported) {
+        return getMessaging(app);
+      }
+      console.warn('Firebase Cloud Messaging is not supported in this browser/environment.');
+      return null;
+    });
+  }
+
+  return messagingPromise;
+}
+
+/**
+ * Requests Notification permission and generates an FCM Device Registration Token.
+ */
+export async function requestFcmToken(): Promise<{
+  token?: string;
+  error?: string;
+  needsVapidKey?: boolean;
+}> {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return { error: 'Notifications are not supported by this browser.' };
+  }
+
+  if (!isFirebaseConfigured || !app) {
+    return { error: 'Firebase is not configured in environment variables.' };
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      return { error: 'Notification permission was denied.' };
+    }
+
+    const messaging = await getFirebaseMessaging();
+    if (!messaging) {
+      return { error: 'Firebase Messaging is not available.' };
+    }
+
+    // Register service worker if supported
+    let swRegistration: ServiceWorkerRegistration | undefined = undefined;
+    if ('serviceWorker' in navigator) {
+      try {
+        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+      } catch (e) {
+        console.warn('Service worker registration failed:', e);
+      }
+    }
+
+    if (!vapidKey) {
+      return {
+        needsVapidKey: true,
+        error: 'Firebase Web Push certificate (VAPID Key) is not set in VITE_FIREBASE_VAPID_KEY.',
+      };
+    }
+
+    const token = await getToken(messaging, {
+      vapidKey,
+      serviceWorkerRegistration: swRegistration,
+    });
+
+    if (token) {
+      return { token };
+    } else {
+      return { error: 'No FCM registration token received.' };
+    }
+  } catch (e: unknown) {
+    const err = e as Error;
+    if (
+      err.message &&
+      (err.message.includes('vapid') ||
+        err.message.includes('publicKey') ||
+        err.message.includes('missing-app-config-value'))
+    ) {
+      return {
+        needsVapidKey: true,
+        error: 'Invalid or missing Firebase Web Push VAPID key.',
+      };
+    }
+    return { error: err.message || 'Failed to generate FCM token.' };
+  }
+}
+
+/**
+ * Listens for FCM push messages when the app is in the foreground.
+ */
+export function onForegroundFcmMessage(
+  callback: (payload: { title?: string; body?: string; data?: Record<string, any> }) => void
+): () => void {
+  let unsubscribe: (() => void) | null = null;
+
+  getFirebaseMessaging().then((messaging) => {
+    if (messaging) {
+      unsubscribe = onMessage(messaging, (payload) => {
+        const title = payload.notification?.title || payload.data?.title || 'DIU Class Notice';
+        const body = payload.notification?.body || payload.data?.body || 'New academic update';
+        callback({
+          title,
+          body,
+          data: payload.data,
+        });
+      });
+    }
+  });
+
+  return () => {
+    if (unsubscribe) unsubscribe();
+  };
+}
+
+export {
+  signInWithPopup,
+  firebaseSignOut,
+  onAuthStateChanged,
+  type FirebaseUser,
+};
