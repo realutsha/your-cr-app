@@ -33,6 +33,11 @@ const firebaseConfig = {
 
 export const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
+export const firebaseConfigSummary = {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+};
+
 export const isFirebaseConfigured = Boolean(
   firebaseConfig.apiKey &&
   firebaseConfig.projectId &&

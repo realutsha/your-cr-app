@@ -19,6 +19,7 @@ import {
   firebaseSignOut,
   onAuthStateChanged,
   isFirebaseConfigured,
+  firebaseConfigSummary,
   type FirebaseUser,
 } from './firebase';
 import {
@@ -566,6 +567,20 @@ class AppStore {
       return { user: this.currentUser || undefined };
     } catch (e: unknown) {
       const err = e as Error;
+      if (err.message && err.message.includes('auth/unauthorized-domain')) {
+        const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'your domain';
+        console.error(
+          '[Firebase Auth] Unauthorized Domain:',
+          currentHost,
+          '| Project:',
+          firebaseConfigSummary.projectId,
+          '| AuthDomain:',
+          firebaseConfigSummary.authDomain
+        );
+        return {
+          error: `Domain "${currentHost}" is not authorized in Firebase Console. Please add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized domains.`,
+        };
+      }
       if (err.message && err.message.includes('auth/popup-closed-by-user')) {
         return { error: 'Sign-in was cancelled.' };
       }
