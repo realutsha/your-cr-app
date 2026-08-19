@@ -19,9 +19,10 @@ service cloud.firestore {
              get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid;
     }
 
-    function userHasNoGroup(userId) {
-      return !exists(/databases/$(database)/documents/users/$(userId)) ||
-             get(/databases/$(database)/documents/users/$(userId)).data.current_group_id == null;
+    function isGroupMember(groupId) {
+      return isDiuUser() && 
+             (isGroupHost(groupId) || 
+              exists(/databases/$(database)/documents/groupMembers/$(groupId + '_' + request.auth.uid)));
     }
 
     // 1. USERS COLLECTION (Permanent Profiles - Never deleted by 4-month expiration)
@@ -29,10 +30,18 @@ service cloud.firestore {
       allow read: if isDiuUser();
       // On create: must be verified DIU user matching UID and authenticated email
       allow create: if isOwner(userId) && 
-                       request.resource.data.email.matches('(?i)^' + request.auth.token.email + '$');
-      // On update: user can update own profile, or group host can clear current_group_id
+                       request.resource.data.email.matches('(?i)^' + request.auth.token.email + '$') &&
+                       (request.resource.data.role == 'student' || request.resource.data.role == null);
+      // On update: user can update own profile (role cannot be arbitrarily set to CR without hosting a group)
+      // or group host can clear current_group_id upon group deletion/member removal
       allow update: if isDiuUser() && (
-        (isOwner(userId) && request.resource.data.email.matches('(?i)^' + resource.data.email + '$')) ||
+        (isOwner(userId) && 
+         request.resource.data.email.matches('(?i)^' + resource.data.email + '$') &&
+         (request.resource.data.role == resource.data.role ||
+          request.resource.data.role == 'student' ||
+          (request.resource.data.role == 'cr' &&
+           request.resource.data.current_group_id != null &&
+           isGroupHost(request.resource.data.current_group_id)))) ||
         (resource.data.current_group_id != null &&
          isGroupHost(resource.data.current_group_id) &&
          request.resource.data.current_group_id == null &&
@@ -54,10 +63,12 @@ service cloud.firestore {
     // 3. GROUP MEMBERS COLLECTION
     match /groupMembers/{memberId} {
       allow read: if isDiuUser();
+      // Students can add themselves on auto-approval, or CR host can add approved members
       allow create: if isDiuUser() && (
-        request.resource.data.user_id == request.auth.uid ||
+        (request.resource.data.user_id == request.auth.uid && memberId == request.resource.data.group_id + '_' + request.auth.uid) ||
         isGroupHost(request.resource.data.group_id)
       );
+      // Students can leave (delete own membership), or CR host can remove members
       allow update, delete: if isDiuUser() && (
         resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
