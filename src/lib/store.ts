@@ -31,6 +31,7 @@ import {
   calculateExpirationDate,
   isGroupExpired,
 } from './auth';
+import { dispatchUpdateNotification } from './notifications';
 import type {
   User,
   Group,
@@ -303,7 +304,12 @@ class AppStore {
             ? (userSnap.data()?.created_at as string)
             : new Date().toISOString(),
       };
-      updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
+      // Throttle last_active_at write to at most once every 2 hours to avoid write churn
+      const lastActive = userSnap.exists() ? (userSnap.data() as any)?.last_active_at : null;
+      const lastActiveTime = lastActive?.toMillis ? lastActive.toMillis() : lastActive ? new Date(lastActive).getTime() : 0;
+      if (!lastActiveTime || Date.now() - lastActiveTime > 2 * 60 * 60 * 1000) {
+        updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
+      }
     } catch (e) {
       console.warn('Could not sync Firestore user profile:', e);
       if (!this.currentUser) {
@@ -395,7 +401,16 @@ class AppStore {
       this.firestoreUnsubscribers.push(updatesUnsub);
 
       // 4. Update Views
-      const viewsQuery = query(collection(db, 'updateViews'), where('group_id', '==', currentGroupId));
+      // Students listen ONLY to their personal view receipts (scalable: ~20 docs instead of 1,500+).
+      // CR fetches the full roster on-demand when opening an update detail sheet.
+      const isCRUser = this.currentUser.role === 'cr';
+      const viewsQuery = isCRUser
+        ? query(collection(db, 'updateViews'), where('group_id', '==', currentGroupId))
+        : query(
+            collection(db, 'updateViews'),
+            where('group_id', '==', currentGroupId),
+            where('user_id', '==', this.currentUser.id)
+          );
       const viewsUnsub = onSnapshot(viewsQuery, (snap) => {
         const list: UpdateView[] = [];
         snap.forEach((d) => list.push({ id: d.id, ...d.data() } as UpdateView));
@@ -1247,7 +1262,32 @@ class AppStore {
     }
   }
 
-  public getViewTrackingRoster(updateId: string): {
+  public async fetchRosterForUpdate(updateId: string): Promise<UpdateView[]> {
+    if (!db || !this.currentUser) return [];
+    try {
+      const q = query(
+        collection(db, 'updateViews'),
+        where('update_id', '==', updateId)
+      );
+      const snap = await getDocs(q);
+      const list: UpdateView[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as UpdateView));
+      // Merge into local views cache
+      list.forEach((v) => {
+        const idx = this.views.findIndex((item) => item.id === v.id);
+        if (idx >= 0) this.views[idx] = v;
+        else this.views.push(v);
+      });
+      this.persist();
+      this.notify();
+      return list;
+    } catch (err) {
+      console.warn('Failed to fetch update views roster:', err);
+      return [];
+    }
+  }
+
+  public getViewTrackingRoster(updateId: string, remoteViews?: UpdateView[]): {
     viewCount: number;
     totalCount: number;
     viewed: string[];
@@ -1260,7 +1300,8 @@ class AppStore {
       (m) => m.group_id === currentGroup.id && m.status === 'approved' && m.user_id !== currentGroup.host_id
     );
 
-    const updateViews = this.views.filter((v) => v.update_id === updateId);
+    const viewsSource = remoteViews && remoteViews.length > 0 ? remoteViews : this.views;
+    const updateViews = viewsSource.filter((v) => v.update_id === updateId);
     const viewedUserIds = new Set(updateViews.map((v) => v.user_id));
 
     const viewed: string[] = [];
@@ -1371,6 +1412,17 @@ class AppStore {
         expires_at: currentGroup.expires_at,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
+      }).catch(() => {});
+
+      // Dispatch push notification to approved class members in background
+      dispatchUpdateNotification({
+        updateId: newUpdate.id,
+        groupId: currentGroup.id,
+        courseName: courseName,
+        category: newUpdate.category,
+        title: newUpdate.title,
+        date: newUpdate.date,
+        time: newUpdate.time,
       }).catch(() => {});
     }
 

@@ -1,4 +1,4 @@
-import { requestFcmToken, onForegroundFcmMessage, isFirebaseConfigured, vapidKey } from './firebase';
+import { requestFcmToken, onForegroundFcmMessage, isFirebaseConfigured, vapidKey, auth } from './firebase';
 import { store } from './store';
 
 export async function requestNotificationPermission(): Promise<{
@@ -81,6 +81,45 @@ export function playSubtleChime() {
 }
 
 /**
+ * Dispatches an FCM push notification request to approved class members via the serverless dispatcher
+ */
+export async function dispatchUpdateNotification(data: {
+  updateId: string;
+  groupId: string;
+  courseName: string;
+  category: string;
+  title: string;
+  date: string;
+  time: string;
+}): Promise<{ success: boolean; delivered?: number; error?: string }> {
+  try {
+    const currentUser = auth?.currentUser;
+    if (!currentUser) return { success: false, error: 'User not signed in' };
+
+    const token = await currentUser.getIdToken();
+    const response = await fetch('/api/send-notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      return { success: false, error: errData.error || `HTTP ${response.status}` };
+    }
+
+    const result = await response.json();
+    return { success: true, delivered: result.delivered };
+  } catch (err: unknown) {
+    const e = err as Error;
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * Initializes foreground push listener that triggers chime and native notification
  */
 export function initForegroundNotificationListener(onReceive?: (title: string, body: string) => void): () => void {
@@ -96,3 +135,4 @@ export function initForegroundNotificationListener(onReceive?: (title: string, b
 }
 
 export { isFirebaseConfigured, vapidKey };
+

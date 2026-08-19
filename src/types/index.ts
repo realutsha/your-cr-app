@@ -61,6 +61,13 @@ export interface Course {
 export type AcademicCategory = 'lab' | 'presentation' | 'assignment' | 'quiz';
 export type AcademicSection = AcademicCategory;
 
+export const CATEGORIES: { key: AcademicCategory; label: string; topicLabel: string; emptyLabel: string }[] = [
+  { key: 'lab', label: 'Lab', topicLabel: 'Topics', emptyLabel: 'No updates in Lab' },
+  { key: 'presentation', label: 'Presentation', topicLabel: 'Topic', emptyLabel: 'No updates in Presentation' },
+  { key: 'assignment', label: 'Assignment', topicLabel: 'Requirements', emptyLabel: 'No updates in Assignment' },
+  { key: 'quiz', label: 'Quiz', topicLabel: 'Syllabus / Topics', emptyLabel: 'No updates in Quiz' },
+];
+
 export type UpdateStatus = 'pending' | 'completed' | 'cancelled' | 'passed_deadline';
 
 export interface AcademicUpdate {
