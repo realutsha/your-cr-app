@@ -23,14 +23,26 @@ import {
 } from 'firebase/messaging';
 
 // Read Firebase Web App configuration from environment variables
+const rawAuthDomain = (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '').trim();
+const projectId = (import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
+
+// Ensure authDomain points to the real Firebase auth handler domain (e.g. <project-id>.firebaseapp.com)
+// and not the Vercel deployment URL (which serves the SPA instead of Firebase auth iframe handler).
+const authDomain =
+  rawAuthDomain && !rawAuthDomain.includes('.vercel.app')
+    ? rawAuthDomain
+    : projectId
+    ? `${projectId}.firebaseapp.com`
+    : rawAuthDomain;
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '',
+  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || '').trim(),
+  authDomain,
+  projectId,
+  storageBucket: (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.firebasestorage.app` : '')).trim(),
+  messagingSenderId: (import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '').trim(),
+  appId: (import.meta.env.VITE_FIREBASE_APP_ID || '').trim(),
+  measurementId: (import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '').trim(),
 };
 
 export const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { store } from '../../lib/store';
 
 interface AuthModalProps {
@@ -7,44 +7,46 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) => {
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(store.getAuthErrorMessage() || '');
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'popup' | 'redirect'>('popup');
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+    const syncError = () => {
+      const msg = store.getAuthErrorMessage();
+      if (msg) {
+        setErrorMsg(msg);
       }
+    };
+    syncError();
+    const unsub = store.subscribe(syncError);
+    return () => {
+      unsub();
     };
   }, []);
 
   const handleGoogleAuth = async (useRedirect = false) => {
     setErrorMsg('');
+    store.clearAuthErrorMessage();
     setLoading(true);
     setAuthMode(useRedirect ? 'redirect' : 'popup');
 
-    // UI safety timeout: reset loading if browser or popup hangs indefinitely
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      setLoading(false);
-      setErrorMsg('Authentication timed out. If the Google popup was blocked, please try "Sign in with redirect" below.');
-    }, 26000);
-
     try {
       const res = await store.signInWithGoogle({ useRedirect });
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setLoading(false);
+      // If using redirect, window will navigate away so loading stays active until unload.
+      if (!useRedirect) {
+        setLoading(false);
+      }
 
       if (res.error) {
+        setLoading(false);
         setErrorMsg(res.error);
       } else if (res.user) {
+        setLoading(false);
         showToast?.(`Signed in as ${res.user.username}`);
         onSuccess();
       }
     } catch (err: unknown) {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setLoading(false);
       const e = err as Error;
       setErrorMsg(e.message || 'An unexpected error occurred during Google authentication.');
@@ -52,7 +54,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
   };
 
   const handleCancel = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setLoading(false);
     setErrorMsg('Authentication was cancelled.');
   };
@@ -160,7 +161,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
             transition: 'background 180ms ease, border-color 180ms ease, transform 120ms ease',
           }}
         >
-          {loading && authMode === 'popup' ? (
+          {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span
                 style={{
@@ -173,7 +174,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
                   animation: 'spin 0.8s linear infinite',
                 }}
               />
-              <span>Authenticating with Google...</span>
+              <span>{authMode === 'redirect' ? 'Redirecting to Google...' : 'Authenticating with Google...'}</span>
             </div>
           ) : (
             <>

@@ -64,6 +64,7 @@ const STORAGE_KEYS = {
 class AppStore {
   private currentUser: User | null = null;
   private authReady: boolean = false;
+  private authErrorMessage: string | null = null;
   private users: User[] = [];
   private groups: Group[] = [];
   private members: GroupMember[] = [];
@@ -128,7 +129,7 @@ class AppStore {
     } catch {}
   }
 
-  private initFirebaseAuthListener() {
+  private async initFirebaseAuthListener() {
     const authInstance = auth;
     if (!isFirebaseConfigured || !authInstance) {
       this.authReady = true;
@@ -136,29 +137,35 @@ class AppStore {
       return;
     }
 
-    // Process redirect sign-in result if returning from a redirect OAuth flow
-    getRedirectResult(authInstance)
-      .then(async (credential) => {
-        if (credential && credential.user) {
-          const user = credential.user;
-          const email = (user.email || '').trim().toLowerCase();
-          const isVerified = Boolean(user.emailVerified);
+    // 1. Process redirect result first if returning from a Google redirect OAuth flow
+    try {
+      const credential = await getRedirectResult(authInstance);
+      if (credential && credential.user) {
+        const user = credential.user;
+        const email = (user.email || '').trim().toLowerCase();
+        const isVerified = Boolean(user.emailVerified);
 
-          if (isDiuEmail(email) && isVerified) {
-            const username = extractUsernameFromEmail(email);
-            await this.syncFirebaseUserProfile(user.uid, email, username);
-          } else {
-            await firebaseSignOut(authInstance).catch(() => {});
-            this.currentUser = null;
-            this.clearFirestoreListeners();
-            this.notify();
-          }
+        if (isDiuEmail(email) && isVerified) {
+          const username = extractUsernameFromEmail(email);
+          await this.syncFirebaseUserProfile(user.uid, email, username);
+          this.authErrorMessage = null;
+        } else {
+          await firebaseSignOut(authInstance).catch(() => {});
+          this.currentUser = null;
+          this.clearFirestoreListeners();
+          this.authErrorMessage =
+            'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted.';
+          this.notify();
         }
-      })
-      .catch((err) => {
-        console.warn('[Firebase Auth] Redirect result error:', err);
-      });
+      }
+    } catch (err: unknown) {
+      console.warn('[Firebase Auth] Redirect result error:', err);
+      const e = err as { code?: string; message?: string };
+      this.authErrorMessage = this.formatFirebaseAuthError(e);
+      this.notify();
+    }
 
+    // 2. Listen to active auth state changes
     onAuthStateChanged(authInstance, async (firebaseUser: FirebaseUser | null) => {
       try {
         if (firebaseUser) {
@@ -174,6 +181,10 @@ class AppStore {
             this.currentUser = null;
             this.clearFirestoreListeners();
             this.persist();
+            if (!this.authErrorMessage) {
+              this.authErrorMessage =
+                'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted.';
+            }
             this.notify();
           }
         } else {
@@ -376,6 +387,15 @@ class AppStore {
     return this.currentUser;
   }
 
+  public getAuthErrorMessage(): string | null {
+    return this.authErrorMessage;
+  }
+
+  public clearAuthErrorMessage() {
+    this.authErrorMessage = null;
+    this.notify();
+  }
+
   public async signInWithGoogle(options?: { useRedirect?: boolean }): Promise<{ user?: User; error?: string }> {
     const authInstance = auth;
     if (!isFirebaseConfigured || !authInstance) {
@@ -391,17 +411,19 @@ class AppStore {
         return {};
       } catch (e: unknown) {
         const err = e as { code?: string; message?: string };
-        return { error: this.formatFirebaseAuthError(err) };
+        const formattedErr = this.formatFirebaseAuthError(err);
+        this.authErrorMessage = formattedErr;
+        return { error: formattedErr };
       }
     }
 
     try {
-      // 25-second timeout wrapper to prevent hanging indefinitely if popup is blocked or stalled
+      // 120-second safety timeout wrapper to allow ample time for password + 2FA entry
       const popupPromise = signInWithPopup(authInstance, googleProvider);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
           reject(new Error('auth/timeout'));
-        }, 25000);
+        }, 120000);
       });
 
       const cred = await Promise.race([popupPromise, timeoutPromise]);
@@ -415,19 +437,22 @@ class AppStore {
         this.currentUser = null;
         this.clearFirestoreListeners();
         this.persist();
+        const accessError =
+          'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted. Please sign in with your official DIU account.';
+        this.authErrorMessage = accessError;
         this.notify();
-        return {
-          error:
-            'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted. Please sign in with your official DIU account.',
-        };
+        return { error: accessError };
       }
 
       const username = extractUsernameFromEmail(email);
       const userProfile = await this.syncFirebaseUserProfile(user.uid, email, username);
+      this.authErrorMessage = null;
       return { user: userProfile };
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      return { error: this.formatFirebaseAuthError(err) };
+      const formattedErr = this.formatFirebaseAuthError(err);
+      this.authErrorMessage = formattedErr;
+      return { error: formattedErr };
     }
   }
 
@@ -465,6 +490,7 @@ class AppStore {
 
   public async signOut() {
     this.currentUser = null;
+    this.authErrorMessage = null;
     this.clearFirestoreListeners();
     localStorage.removeItem(STORAGE_KEYS.USER);
     const authInstance = auth;
