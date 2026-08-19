@@ -16,10 +16,11 @@ import {
   db,
   googleProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   firebaseSignOut,
   onAuthStateChanged,
   isFirebaseConfigured,
-  firebaseConfigSummary,
   type FirebaseUser,
 } from './firebase';
 import {
@@ -43,10 +44,10 @@ import type {
 } from '../types';
 
 /* ------------------------------------------------------------------
-   STORAGE KEYS FOR PERSISTENCE & LOCAL DEMO
+   STORAGE KEYS FOR PERSISTENCE & LOCAL CACHE
 -------------------------------------------------------------------*/
 const STORAGE_KEYS = {
-  USER: 'diu_cr_user',
+  USER: 'diu_cr_user_cache',
   USERS: 'diu_cr_users',
   GROUPS: 'diu_cr_groups',
   MEMBERS: 'diu_cr_members',
@@ -58,221 +59,11 @@ const STORAGE_KEYS = {
 };
 
 /* ------------------------------------------------------------------
-   SEED DATA FOR FRESH START / OFFLINE CAPABILITY
--------------------------------------------------------------------*/
-const DEFAULT_CR_USER: User = {
-  id: 'usr-cr-251-35-118',
-  email: '251-35-118@diu.edu.bd',
-  username: '251-35-118',
-  role: 'cr',
-  current_group_id: 'grp-swe-sec-i',
-  created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-};
-
-const DEFAULT_STUDENT_USERS: User[] = [
-  {
-    id: 'usr-std-221-15-401',
-    email: '221-15-401@diu.edu.bd',
-    username: '221-15-401',
-    role: 'student',
-    current_group_id: 'grp-swe-sec-i',
-    created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-  },
-  {
-    id: 'usr-std-221-15-402',
-    email: '221-15-402@diu.edu.bd',
-    username: '221-15-402',
-    role: 'student',
-    current_group_id: 'grp-swe-sec-i',
-    created_at: new Date(Date.now() - 24 * 86400000).toISOString(),
-  },
-  {
-    id: 'usr-std-221-15-403',
-    email: '221-15-403@diu.edu.bd',
-    username: '221-15-403',
-    role: 'student',
-    current_group_id: 'grp-swe-sec-i',
-    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-  {
-    id: 'usr-std-221-15-404',
-    email: '221-15-404@diu.edu.bd',
-    username: '221-15-404',
-    role: 'student',
-    current_group_id: 'grp-swe-sec-i',
-    created_at: new Date(Date.now() - 18 * 86400000).toISOString(),
-  },
-  {
-    id: 'usr-std-221-15-405',
-    email: '221-15-405@diu.edu.bd',
-    username: '221-15-405',
-    role: 'student',
-    current_group_id: 'grp-swe-sec-i',
-    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-  },
-];
-
-const INITIAL_GROUPS: Group[] = [
-  {
-    id: 'grp-swe-sec-i',
-    name: 'Software Engineering — Section I',
-    code: 'SWE251',
-    host_id: DEFAULT_CR_USER.id,
-    host_username: DEFAULT_CR_USER.username,
-    approval_mode: 'auto',
-    created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-    expires_at: calculateExpirationDate(new Date(Date.now() - 25 * 86400000)),
-    status: 'active',
-    member_count: 6,
-  },
-];
-
-const INITIAL_MEMBERS: GroupMember[] = [
-  {
-    group_id: 'grp-swe-sec-i',
-    user_id: DEFAULT_CR_USER.id,
-    joined_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-    status: 'approved',
-    username: DEFAULT_CR_USER.username,
-    email: DEFAULT_CR_USER.email,
-  },
-  ...DEFAULT_STUDENT_USERS.map((s) => ({
-    group_id: 'grp-swe-sec-i',
-    user_id: s.id,
-    joined_at: s.created_at,
-    status: 'approved' as const,
-    username: s.username,
-    email: s.email,
-  })),
-];
-
-const INITIAL_COURSES: Course[] = [
-  {
-    id: 'crs-oop',
-    group_id: 'grp-swe-sec-i',
-    name: 'Object Oriented Programming',
-    created_at: new Date(Date.now() - 24 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 24 * 86400000).toISOString(),
-  },
-  {
-    id: 'crs-dbms',
-    group_id: 'grp-swe-sec-i',
-    name: 'Database Management System',
-    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-  {
-    id: 'crs-algo',
-    group_id: 'grp-swe-sec-i',
-    name: 'Algorithm Design & Analysis',
-    created_at: new Date(Date.now() - 18 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 18 * 86400000).toISOString(),
-  },
-  {
-    id: 'crs-swe',
-    group_id: 'grp-swe-sec-i',
-    name: 'Software Engineering',
-    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-  },
-];
-
-const INITIAL_ACADEMIC_UPDATES: AcademicUpdate[] = [
-  {
-    id: 'upd-oop-quiz1',
-    group_id: 'grp-swe-sec-i',
-    course_id: 'crs-oop',
-    host_id: DEFAULT_CR_USER.id,
-    category: 'quiz',
-    section: 'quiz',
-    course_name: 'Object Oriented Programming',
-    title: 'Quiz 1',
-    date: '15 Aug',
-    time: '7:00 AM',
-    topic: 'Array & Class Design',
-    description: 'Room 602. Bring your DIU ID card and registered device.',
-    resource_url: 'https://drive.google.com/file/d/1oop-quiz1-syllabus/view',
-    status: 'pending',
-    created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-  },
-  {
-    id: 'upd-oop-quiz2',
-    group_id: 'grp-swe-sec-i',
-    course_id: 'crs-oop',
-    host_id: DEFAULT_CR_USER.id,
-    category: 'quiz',
-    section: 'quiz',
-    course_name: 'Object Oriented Programming',
-    title: 'Quiz 2',
-    date: '22 Aug',
-    time: '10:00 AM',
-    topic: 'Polymorphism & Inheritance',
-    description: 'Closed book. 20 MCQs + 1 short problem.',
-    status: 'pending',
-    created_at: new Date(Date.now() - 5 * 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 5 * 3600000).toISOString(),
-  },
-  {
-    id: 'upd-oop-quiz3',
-    group_id: 'grp-swe-sec-i',
-    course_id: 'crs-oop',
-    host_id: DEFAULT_CR_USER.id,
-    category: 'quiz',
-    section: 'quiz',
-    course_name: 'Object Oriented Programming',
-    title: 'Quiz 3',
-    date: '29 Aug',
-    time: '9:00 AM',
-    topic: 'Interfaces & Abstract Classes',
-    description: 'Room 504. Prepare Chapter 7 and 8.',
-    status: 'pending',
-    created_at: new Date(Date.now() - 6 * 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 6 * 3600000).toISOString(),
-  },
-  {
-    id: 'upd-oop-lab1',
-    group_id: 'grp-swe-sec-i',
-    course_id: 'crs-oop',
-    host_id: DEFAULT_CR_USER.id,
-    category: 'lab',
-    section: 'lab',
-    course_name: 'Object Oriented Programming',
-    title: 'Lab Test 1',
-    date: '17 Aug',
-    time: '11:30 AM',
-    topic: 'Java Collections Framework',
-    description: 'Computer Lab 3. Submit code via GitHub classroom.',
-    resource_url: 'https://github.com/diu-cse/oop-lab-test-1',
-    status: 'pending',
-    created_at: new Date(Date.now() - 8 * 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 8 * 3600000).toISOString(),
-  },
-  {
-    id: 'upd-oop-asgn1',
-    group_id: 'grp-swe-sec-i',
-    course_id: 'crs-oop',
-    host_id: DEFAULT_CR_USER.id,
-    category: 'assignment',
-    section: 'assignment',
-    course_name: 'Object Oriented Programming',
-    title: 'Assignment 1',
-    date: '24 Aug',
-    time: '11:59 PM',
-    topic: 'Banking Management Simulation',
-    description: 'Implement OOP principles with full unit tests.',
-    resource_url: 'https://drive.google.com/file/d/1oop-assignment1-guidelines/view',
-    status: 'pending',
-    created_at: new Date(Date.now() - 10 * 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 10 * 3600000).toISOString(),
-  },
-];
-
-/* ------------------------------------------------------------------
    FIREBASE CLOUD FIRESTORE APP STORE
 -------------------------------------------------------------------*/
 class AppStore {
   private currentUser: User | null = null;
+  private authReady: boolean = false;
   private users: User[] = [];
   private groups: Group[] = [];
   private members: GroupMember[] = [];
@@ -291,7 +82,6 @@ class AppStore {
 
   private loadFromStorage() {
     try {
-      const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
       const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
       const storedGroups = localStorage.getItem(STORAGE_KEYS.GROUPS);
       const storedMembers = localStorage.getItem(STORAGE_KEYS.MEMBERS);
@@ -300,22 +90,23 @@ class AppStore {
       const storedUpdates = localStorage.getItem(STORAGE_KEYS.UPDATES);
       const storedViews = localStorage.getItem(STORAGE_KEYS.VIEWS);
 
-      this.currentUser = storedUser ? JSON.parse(storedUser) : null;
-      this.users = storedUsers ? JSON.parse(storedUsers) : [DEFAULT_CR_USER, ...DEFAULT_STUDENT_USERS];
-      this.groups = storedGroups ? JSON.parse(storedGroups) : INITIAL_GROUPS;
-      this.members = storedMembers ? JSON.parse(storedMembers) : INITIAL_MEMBERS;
+      // Note: currentUser is NEVER trusted from localStorage to prevent auth bypass.
+      this.currentUser = null;
+      this.users = storedUsers ? JSON.parse(storedUsers) : [];
+      this.groups = storedGroups ? JSON.parse(storedGroups) : [];
+      this.members = storedMembers ? JSON.parse(storedMembers) : [];
       this.requests = storedRequests ? JSON.parse(storedRequests) : [];
-      this.courses = storedCourses ? JSON.parse(storedCourses) : INITIAL_COURSES;
-      this.updates = storedUpdates ? JSON.parse(storedUpdates) : INITIAL_ACADEMIC_UPDATES;
+      this.courses = storedCourses ? JSON.parse(storedCourses) : [];
+      this.updates = storedUpdates ? JSON.parse(storedUpdates) : [];
       this.views = storedViews ? JSON.parse(storedViews) : [];
     } catch {
       this.currentUser = null;
-      this.users = [DEFAULT_CR_USER, ...DEFAULT_STUDENT_USERS];
-      this.groups = INITIAL_GROUPS;
-      this.members = INITIAL_MEMBERS;
+      this.users = [];
+      this.groups = [];
+      this.members = [];
       this.requests = [];
-      this.courses = INITIAL_COURSES;
-      this.updates = INITIAL_ACADEMIC_UPDATES;
+      this.courses = [];
+      this.updates = [];
       this.views = [];
     }
   }
@@ -338,56 +129,96 @@ class AppStore {
   }
 
   private initFirebaseAuthListener() {
-    if (!auth) return;
+    const authInstance = auth;
+    if (!isFirebaseConfigured || !authInstance) {
+      this.authReady = true;
+      this.notify();
+      return;
+    }
 
-    onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        const email = (firebaseUser.email || '').trim();
-        const isVerified = Boolean(firebaseUser.emailVerified);
+    // Process redirect sign-in result if returning from a redirect OAuth flow
+    getRedirectResult(authInstance)
+      .then(async (credential) => {
+        if (credential && credential.user) {
+          const user = credential.user;
+          const email = (user.email || '').trim().toLowerCase();
+          const isVerified = Boolean(user.emailVerified);
 
-        if (isDiuEmail(email) && isVerified) {
-          const username = extractUsernameFromEmail(email);
-          await this.syncFirebaseUserProfile(firebaseUser.uid, email, username);
-        } else {
-          // Unauthorized: Immediately sign out without creating or updating any Firestore documents
-          if (auth) {
-            await firebaseSignOut(auth).catch(() => {});
+          if (isDiuEmail(email) && isVerified) {
+            const username = extractUsernameFromEmail(email);
+            await this.syncFirebaseUserProfile(user.uid, email, username);
+          } else {
+            await firebaseSignOut(authInstance).catch(() => {});
+            this.currentUser = null;
+            this.clearFirestoreListeners();
+            this.notify();
           }
+        }
+      })
+      .catch((err) => {
+        console.warn('[Firebase Auth] Redirect result error:', err);
+      });
+
+    onAuthStateChanged(authInstance, async (firebaseUser: FirebaseUser | null) => {
+      try {
+        if (firebaseUser) {
+          const email = (firebaseUser.email || '').trim().toLowerCase();
+          const isVerified = Boolean(firebaseUser.emailVerified);
+
+          if (isDiuEmail(email) && isVerified) {
+            const username = extractUsernameFromEmail(email);
+            await this.syncFirebaseUserProfile(firebaseUser.uid, email, username);
+          } else {
+            // Unauthorized or non-DIU email: immediately sign out
+            await firebaseSignOut(authInstance).catch(() => {});
+            this.currentUser = null;
+            this.clearFirestoreListeners();
+            this.persist();
+            this.notify();
+          }
+        } else {
           this.currentUser = null;
           this.clearFirestoreListeners();
           this.persist();
           this.notify();
         }
-      } else {
-        this.clearFirestoreListeners();
+      } finally {
+        this.authReady = true;
+        this.notify();
       }
     });
   }
 
-  private async syncFirebaseUserProfile(uid: string, email: string, username: string) {
-    if (!db) return;
+  private async syncFirebaseUserProfile(uid: string, email: string, username: string): Promise<User> {
+    const defaultUser: User = {
+      id: uid,
+      email,
+      username,
+      role: 'student',
+      current_group_id: null,
+      created_at: new Date().toISOString(),
+    };
+
+    if (!db) {
+      this.currentUser = defaultUser;
+      this.persist();
+      this.notify();
+      return defaultUser;
+    }
 
     try {
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        const newUser: User = {
-          id: uid,
-          email,
-          username,
-          role: 'student',
-          current_group_id: null,
-          created_at: new Date().toISOString(),
-        };
         await setDoc(userRef, {
-          ...newUser,
+          ...defaultUser,
           created_at: serverTimestamp(),
           last_active_at: serverTimestamp(),
         });
-        this.currentUser = newUser;
+        this.currentUser = defaultUser;
       } else {
-        const data = userSnap.data() as User;
+        const data = userSnap.data() as Partial<User>;
         this.currentUser = {
           id: uid,
           email: data.email || email,
@@ -398,13 +229,15 @@ class AppStore {
         };
         await updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
       }
-
-      this.persist();
-      this.notify();
-      this.attachFirestoreListeners();
     } catch (e) {
       console.warn('Could not sync Firestore user profile:', e);
+      this.currentUser = defaultUser;
     }
+
+    this.persist();
+    this.notify();
+    this.attachFirestoreListeners();
+    return this.currentUser;
   }
 
   private attachFirestoreListeners() {
@@ -535,68 +368,108 @@ class AppStore {
   // AUTHENTICATION
   // ==========================================
 
+  public isAuthReady(): boolean {
+    return this.authReady;
+  }
+
   public getCurrentUser(): User | null {
     return this.currentUser;
   }
 
-  public async signInWithGoogle(): Promise<{ user?: User; error?: string }> {
-    if (!isFirebaseConfigured || !auth) {
-      return { error: 'Firebase Authentication is not configured.' };
+  public async signInWithGoogle(options?: { useRedirect?: boolean }): Promise<{ user?: User; error?: string }> {
+    const authInstance = auth;
+    if (!isFirebaseConfigured || !authInstance) {
+      return {
+        error:
+          'Firebase Authentication is not configured. Please ensure VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_APP_ID are set.',
+      };
+    }
+
+    if (options?.useRedirect) {
+      try {
+        await signInWithRedirect(authInstance, googleProvider);
+        return {};
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        return { error: this.formatFirebaseAuthError(err) };
+      }
     }
 
     try {
-      const cred = await signInWithPopup(auth, googleProvider);
+      // 25-second timeout wrapper to prevent hanging indefinitely if popup is blocked or stalled
+      const popupPromise = signInWithPopup(authInstance, googleProvider);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('auth/timeout'));
+        }, 25000);
+      });
+
+      const cred = await Promise.race([popupPromise, timeoutPromise]);
       const user = cred.user;
       const email = (user.email || '').trim().toLowerCase();
       const isVerified = Boolean(user.emailVerified);
 
       // Strict DIU Domain & Google Email Verification Check
       if (!email || !isVerified || !isDiuEmail(email)) {
-        await firebaseSignOut(auth).catch(() => {});
+        await firebaseSignOut(authInstance).catch(() => {});
         this.currentUser = null;
         this.clearFirestoreListeners();
         this.persist();
         this.notify();
         return {
-          error: 'Only verified DIU accounts (@diu.edu.bd) can access ClassMate.',
+          error:
+            'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted. Please sign in with your official DIU account.',
         };
       }
 
       const username = extractUsernameFromEmail(email);
-      await this.syncFirebaseUserProfile(user.uid, email, username);
-      return { user: this.currentUser || undefined };
+      const userProfile = await this.syncFirebaseUserProfile(user.uid, email, username);
+      return { user: userProfile };
     } catch (e: unknown) {
-      const err = e as Error;
-      if (err.message && err.message.includes('auth/unauthorized-domain')) {
-        const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'your domain';
-        console.error(
-          '[Firebase Auth] Unauthorized Domain:',
-          currentHost,
-          '| Project:',
-          firebaseConfigSummary.projectId,
-          '| AuthDomain:',
-          firebaseConfigSummary.authDomain
-        );
-        return {
-          error: `Domain "${currentHost}" is not authorized in Firebase Console. Please add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized domains.`,
-        };
-      }
-      if (err.message && err.message.includes('auth/popup-closed-by-user')) {
-        return { error: 'Sign-in was cancelled.' };
-      }
-      if (err.message && err.message.includes('auth/popup-blocked')) {
-        return { error: 'Popup blocked by browser. Please allow popups for Google sign-in.' };
-      }
-      return { error: err.message || 'Google sign-in failed. Please try again.' };
+      const err = e as { code?: string; message?: string };
+      return { error: this.formatFirebaseAuthError(err) };
     }
+  }
+
+  private formatFirebaseAuthError(err: { code?: string; message?: string }): string {
+    const code = err.code || '';
+    const message = err.message || '';
+
+    if (message === 'auth/timeout') {
+      return 'Authentication timed out. If the Google popup did not appear, please allow popups or try "Sign in with redirect".';
+    }
+    if (code === 'auth/popup-closed-by-user' || message.includes('auth/popup-closed-by-user')) {
+      return 'Sign-in cancelled. The Google sign-in window was closed.';
+    }
+    if (code === 'auth/popup-blocked' || message.includes('auth/popup-blocked')) {
+      return 'Popup was blocked by your browser. Please allow popups for this site or try "Sign in with redirect".';
+    }
+    if (code === 'auth/cancelled-popup-request' || message.includes('auth/cancelled-popup-request')) {
+      return 'Sign-in window was closed or interrupted by another request.';
+    }
+    if (code === 'auth/unauthorized-domain' || message.includes('auth/unauthorized-domain')) {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'class-mate-woad.vercel.app';
+      return `Domain "${currentHost}" is not authorized in Firebase Console. Please add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized domains.`;
+    }
+    if (code === 'auth/network-request-failed' || message.includes('auth/network-request-failed')) {
+      return 'Network connection error during sign-in. Please check your internet connection.';
+    }
+    if (code === 'auth/operation-not-allowed' || message.includes('auth/operation-not-allowed')) {
+      return 'Google sign-in provider is not enabled in Firebase Console. Please enable Google under Firebase Authentication -> Sign-in method.';
+    }
+    if (code === 'auth/invalid-api-key' || message.includes('auth/invalid-api-key')) {
+      return 'Invalid Firebase configuration. Please check your VITE_FIREBASE_API_KEY environment variable.';
+    }
+    return message || 'Google authentication failed. Please try again.';
   }
 
   public async signOut() {
     this.currentUser = null;
     this.clearFirestoreListeners();
     localStorage.removeItem(STORAGE_KEYS.USER);
-    if (isFirebaseConfigured && auth) {
-      await firebaseSignOut(auth).catch(() => {});
+    const authInstance = auth;
+    if (isFirebaseConfigured && authInstance) {
+      await firebaseSignOut(authInstance).catch(() => {});
     }
     this.notify();
   }

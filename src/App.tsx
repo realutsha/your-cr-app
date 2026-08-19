@@ -2440,6 +2440,7 @@ function BottomNav({ screen, setScreen, unreadCount }: BottomNavProps) {
    MAIN APPLICATION ROOT
 ----------------------------------------------------------------*/
 export function App() {
+  const [authReady, setAuthReady] = useState<boolean>(store.isAuthReady());
   const [currentUser, setCurrentUser] = useState<User | null>(store.getCurrentUser());
   const [currentGroup, setCurrentGroup] = useState<Group | null>(store.getCurrentUserGroup());
   const [courses, setCourses] = useState<Course[]>(store.getCourses());
@@ -2480,6 +2481,7 @@ export function App() {
 
   useEffect(() => {
     const unsubStore = store.subscribe(() => {
+      setAuthReady(store.isAuthReady());
       setCurrentUser(store.getCurrentUser());
       setCurrentGroup(store.getCurrentUserGroup());
       setCourses(store.getCourses());
@@ -2647,6 +2649,43 @@ export function App() {
     setConfirm(null);
     showToast('Signed out');
   };
+
+  if (!authReady) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'var(--c-bg)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            border: '2.5px solid var(--c-hairline-strong)',
+            borderTopColor: 'var(--c-accent)',
+            animation: 'spin 0.8s linear infinite',
+          }}
+        />
+        <div
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            fontWeight: 500,
+            color: 'var(--c-text-soft)',
+          }}
+        >
+          Connecting to Class Announcement Hub...
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (

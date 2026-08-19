@@ -3,6 +3,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type Auth,
@@ -36,6 +38,8 @@ export const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 export const firebaseConfigSummary = {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain,
+  hasApiKey: Boolean(firebaseConfig.apiKey),
+  hasAppId: Boolean(firebaseConfig.appId),
 };
 
 export const isFirebaseConfigured = Boolean(
@@ -64,6 +68,8 @@ googleProvider.setCustomParameters({
   hd: 'diu.edu.bd',
   prompt: 'select_account',
 });
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
 
 let messagingPromise: Promise<Messaging | null> | null = null;
 
@@ -114,7 +120,10 @@ export async function requestFcmToken(): Promise<{
     let swRegistration: ServiceWorkerRegistration | undefined = undefined;
     if ('serviceWorker' in navigator) {
       try {
-        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const swUrl = firebaseConfig.apiKey
+          ? `/firebase-messaging-sw.js?apiKey=${encodeURIComponent(firebaseConfig.apiKey)}&projectId=${encodeURIComponent(firebaseConfig.projectId)}&authDomain=${encodeURIComponent(firebaseConfig.authDomain)}&messagingSenderId=${encodeURIComponent(firebaseConfig.messagingSenderId)}&appId=${encodeURIComponent(firebaseConfig.appId)}`
+          : '/firebase-messaging-sw.js';
+        swRegistration = await navigator.serviceWorker.register(swUrl);
         await navigator.serviceWorker.ready;
       } catch (e) {
         console.warn('Service worker registration failed:', e);
@@ -183,7 +192,10 @@ export function onForegroundFcmMessage(
 }
 
 export {
+  GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   firebaseSignOut,
   onAuthStateChanged,
   type FirebaseUser,

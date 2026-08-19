@@ -3,17 +3,20 @@ importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js');
 
 // Initialize Firebase in Service Worker using Web App config
+const params = new URLSearchParams(location.search);
 const firebaseConfig = {
-  apiKey: "AIzaSyB_cX1cgjITzik4huErJug7WoRe3iPo2eU",
-  authDomain: "classmate-6f10c.firebaseapp.com",
-  projectId: "classmate-6f10c",
-  storageBucket: "classmate-6f10c.firebasestorage.app",
-  messagingSenderId: "364243941198",
-  appId: "1:364243941198:web:a24971e9ef80330406d01f",
-  measurementId: "G-3WJEF0R81S"
+  apiKey: params.get('apiKey') || "AIzaSyB_cX1cgjITzik4huErJug7WoRe3iPo2eU",
+  authDomain: params.get('authDomain') || "classmate-6f10c.firebaseapp.com",
+  projectId: params.get('projectId') || "classmate-6f10c",
+  storageBucket: params.get('storageBucket') || "classmate-6f10c.firebasestorage.app",
+  messagingSenderId: params.get('messagingSenderId') || "364243941198",
+  appId: params.get('appId') || "1:364243941198:web:a24971e9ef80330406d01f",
+  measurementId: params.get('measurementId') || "G-3WJEF0R81S"
 };
 
-firebase.initializeApp(firebaseConfig);
+if (firebase.apps.length === 0) {
+  firebase.initializeApp(firebaseConfig);
+}
 
 let messaging = null;
 try {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { store } from '../../lib/store';
 
 interface AuthModalProps {
@@ -9,20 +9,52 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<'popup' | 'redirect'>('popup');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleGoogleAuth = async () => {
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleGoogleAuth = async (useRedirect = false) => {
     setErrorMsg('');
     setLoading(true);
+    setAuthMode(useRedirect ? 'redirect' : 'popup');
 
-    const res = await store.signInWithGoogle();
-    setLoading(false);
+    // UI safety timeout: reset loading if browser or popup hangs indefinitely
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      setErrorMsg('Authentication timed out. If the Google popup was blocked, please try "Sign in with redirect" below.');
+    }, 26000);
 
-    if (res.error) {
-      setErrorMsg(res.error);
-    } else if (res.user) {
-      showToast?.(`Signed in as ${res.user.username}`);
-      onSuccess();
+    try {
+      const res = await store.signInWithGoogle({ useRedirect });
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setLoading(false);
+
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else if (res.user) {
+        showToast?.(`Signed in as ${res.user.username}`);
+        onSuccess();
+      }
+    } catch (err: unknown) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setLoading(false);
+      const e = err as Error;
+      setErrorMsg(e.message || 'An unexpected error occurred during Google authentication.');
     }
+  };
+
+  const handleCancel = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setLoading(false);
+    setErrorMsg('Authentication was cancelled.');
   };
 
   return (
@@ -97,16 +129,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
               padding: '12px 14px',
               marginBottom: 20,
               lineHeight: 1.45,
+              wordBreak: 'break-word',
             }}
           >
             {errorMsg}
           </div>
         )}
 
-        {/* ONLY LOGIN METHOD: CONTINUE WITH GOOGLE */}
+        {/* PRIMARY AUTH BUTTON: CONTINUE WITH GOOGLE */}
         <button
           id="google-signin-btn"
-          onClick={handleGoogleAuth}
+          onClick={() => handleGoogleAuth(false)}
           disabled={loading}
           style={{
             width: '100%',
@@ -127,8 +160,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
             transition: 'background 180ms ease, border-color 180ms ease, transform 120ms ease',
           }}
         >
-          {loading ? (
-            <span>Authenticating with Google...</span>
+          {loading && authMode === 'popup' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  border: '2px solid var(--c-text-soft)',
+                  borderTopColor: 'var(--c-accent)',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+              <span>Authenticating with Google...</span>
+            </div>
           ) : (
             <>
               <svg width="19" height="19" viewBox="0 0 24 24">
@@ -153,6 +199,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
             </>
           )}
         </button>
+
+        {/* Cancel button if currently loading */}
+        {loading && (
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button
+              onClick={handleCancel}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--c-text-soft)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 12.5,
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: '4px 8px',
+              }}
+            >
+              Cancel authentication
+            </button>
+          </div>
+        )}
+
+        {/* Fallback / Mobile friendly option: Sign in with redirect */}
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <button
+            onClick={() => handleGoogleAuth(true)}
+            disabled={loading}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--c-text-faint)',
+              fontFamily: 'var(--font-body)',
+              fontSize: 12,
+              cursor: loading ? 'default' : 'pointer',
+              padding: '6px 10px',
+              transition: 'color 160ms ease',
+            }}
+          >
+            Having trouble with popups? <span style={{ color: 'var(--c-accent)', textDecoration: 'underline' }}>Sign in with redirect</span>
+          </button>
+        </div>
+
+        {/* Security badge note */}
+        <div
+          style={{
+            marginTop: 28,
+            padding: '12px 14px',
+            background: 'var(--c-card-subtle)',
+            borderRadius: 12,
+            border: '1px solid var(--c-hairline)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <div
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 11.5,
+              color: 'var(--c-text-soft)',
+              lineHeight: 1.4,
+            }}
+          >
+            Access is strictly restricted to verified Daffodil International University Google accounts (<strong style={{ color: 'var(--c-text)' }}>@diu.edu.bd</strong>).
+          </div>
+        </div>
       </div>
     </div>
   );

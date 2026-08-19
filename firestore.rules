@@ -6,7 +6,7 @@ service cloud.firestore {
     function isDiuUser() {
       return request.auth != null &&
              request.auth.token.email_verified == true &&
-             request.auth.token.email.matches('^[a-zA-Z0-9._%+-]+@diu[.]edu[.]bd$');
+             request.auth.token.email.matches('(?i)^[a-zA-Z0-9._%+-]+@diu[.]edu[.]bd$');
     }
     
     function isOwner(userId) {
@@ -15,32 +15,33 @@ service cloud.firestore {
 
     function isGroupHost(groupId) {
       return isDiuUser() && 
-        get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid;
+             exists(/databases/$(database)/documents/groups/$(groupId)) &&
+             get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid;
     }
 
     function userHasNoGroup(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.current_group_id == null;
+      return !exists(/databases/$(database)/documents/users/$(userId)) ||
+             get(/databases/$(database)/documents/users/$(userId)).data.current_group_id == null;
     }
 
     // 1. USERS COLLECTION (Permanent Profiles - Never deleted by 4-month expiration)
     match /users/{userId} {
       allow read: if isDiuUser();
-      // On create: must be verified DIU user matching UID and email
-      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
+      // On create: must be verified DIU user matching UID and authenticated email
+      allow create: if isOwner(userId) && 
+                       request.resource.data.email.matches('(?i)^' + request.auth.token.email + '$');
       // On update: username and email are immutable (cannot be altered)
       allow update: if isOwner(userId) && 
-                       request.resource.data.email == resource.data.email &&
-                       request.resource.data.username == resource.data.username;
+                       request.resource.data.email.matches('(?i)^' + resource.data.email + '$');
       allow delete: if false; // Permanent identity preservation
     }
 
     // 2. GROUPS COLLECTION
     match /groups/{groupId} {
       allow read: if isDiuUser();
-      // Only verified DIU users who do NOT have an active group can create a new group
+      // Only verified DIU users can create a new group as host
       allow create: if isDiuUser() && 
-                       request.resource.data.host_id == request.auth.uid &&
-                       userHasNoGroup(request.auth.uid);
+                       request.resource.data.host_id == request.auth.uid;
       // Strictly only the CR can update group details or delete the group
       allow update, delete: if isGroupHost(groupId);
     }
@@ -49,11 +50,11 @@ service cloud.firestore {
     match /groupMembers/{memberId} {
       allow read: if isDiuUser();
       allow create: if isDiuUser() && (
-        (request.resource.data.user_id == request.auth.uid && userHasNoGroup(request.auth.uid)) ||
+        request.resource.data.user_id == request.auth.uid ||
         isGroupHost(request.resource.data.group_id)
       );
       allow update, delete: if isDiuUser() && (
-        request.auth.uid == resource.data.user_id || 
+        resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
       );
     }
@@ -65,11 +66,10 @@ service cloud.firestore {
         isGroupHost(resource.data.group_id)
       );
       allow create: if isDiuUser() && 
-                       request.resource.data.user_id == request.auth.uid && 
-                       userHasNoGroup(request.auth.uid);
+                       request.resource.data.user_id == request.auth.uid;
       allow update: if isGroupHost(resource.data.group_id);
       allow delete: if isDiuUser() && (
-        request.auth.uid == resource.data.user_id || 
+        resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
       );
     }
@@ -77,14 +77,18 @@ service cloud.firestore {
     // 5. COURSES COLLECTION
     match /courses/{courseId} {
       allow read: if isDiuUser();
-      allow create, update, delete: if isGroupHost(request.resource.data.group_id || resource.data.group_id);
+      allow create: if isDiuUser() && isGroupHost(request.resource.data.group_id);
+      allow update: if isDiuUser() && isGroupHost(resource.data.group_id);
+      allow delete: if isDiuUser() && isGroupHost(resource.data.group_id);
     }
 
     // 6. ACADEMIC UPDATES COLLECTION (Quiz, Lab, Presentation, Assignment)
     match /updates/{updateId} {
       allow read: if isDiuUser();
       // Strictly only the CR can post, edit, or delete updates
-      allow create, update, delete: if isGroupHost(request.resource.data.group_id || resource.data.group_id);
+      allow create: if isDiuUser() && isGroupHost(request.resource.data.group_id);
+      allow update: if isDiuUser() && isGroupHost(resource.data.group_id);
+      allow delete: if isDiuUser() && isGroupHost(resource.data.group_id);
     }
 
     // 7. UPDATE VIEWS (Read Receipts)
@@ -98,7 +102,10 @@ service cloud.firestore {
 
     // 8. DEVICE TOKENS (FCM)
     match /devices/{deviceId} {
-      allow read, write: if isDiuUser() && request.auth.uid == (request.resource.data.user_id || resource.data.user_id);
+      allow read: if isDiuUser() && resource.data.user_id == request.auth.uid;
+      allow create: if isDiuUser() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isDiuUser() && resource.data.user_id == request.auth.uid && request.resource.data.user_id == request.auth.uid;
+      allow delete: if isDiuUser() && resource.data.user_id == request.auth.uid;
     }
   }
 }

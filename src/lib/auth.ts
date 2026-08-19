@@ -5,7 +5,7 @@ export const DIU_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@diu\.edu\.bd$/i;
  * Validates if the email belongs strictly and exactly to the @diu.edu.bd university domain
  * (Case-insensitive, rejects subdomains, prefixes, or attacker suffixes like .attacker.com)
  */
-export function isDiuEmail(email: string): boolean {
+export function isDiuEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   const trimmed = email.trim().toLowerCase();
   return DIU_EMAIL_REGEX.test(trimmed);
