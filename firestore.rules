@@ -96,8 +96,11 @@ service cloud.firestore {
       allow read: if isDiuUser();
       // Students can only create their own view record
       allow create: if isDiuUser() && request.resource.data.user_id == request.auth.uid;
-      // View receipts are immutable audit logs
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isDiuUser() && (
+        resource.data.user_id == request.auth.uid ||
+        isGroupHost(resource.data.group_id)
+      );
     }
 
     // 8. DEVICE TOKENS (FCM)

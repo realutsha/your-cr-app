@@ -1897,6 +1897,7 @@ interface ProfileScreenProps {
   onEnableNotifications: () => void;
   onCopyCode: () => void;
   onLeave: () => void;
+  onDeleteGroup?: () => void;
   onLogout: () => void;
   onToggleApprovalMode?: (mode: ApprovalMode) => void;
   onJoinClick: () => void;
@@ -1914,6 +1915,7 @@ function ProfileScreen({
   onEnableNotifications,
   onCopyCode,
   onLeave,
+  onDeleteGroup,
   onLogout,
   onToggleApprovalMode,
   onJoinClick,
@@ -1998,7 +2000,7 @@ function ProfileScreen({
 
                 <div
                   style={{
-                    maxHeight: detailsOpen ? 180 : 0,
+                    maxHeight: detailsOpen ? 240 : 0,
                     opacity: detailsOpen ? 1 : 0,
                     overflow: 'hidden',
                     transition: 'max-height 240ms ease, opacity 180ms ease',
@@ -2031,6 +2033,38 @@ function ProfileScreen({
                         }}
                       >
                         {group.approval_mode} (Tap to change)
+                      </button>
+                    </div>
+
+                    {/* Quick Delete Option inside Class Management */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 0',
+                        borderTop: '1px solid var(--c-hairline)',
+                        marginTop: 4,
+                      }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-danger)' }}>
+                        Delete Class
+                      </span>
+                      <button
+                        onClick={onDeleteGroup}
+                        style={{
+                          fontFamily: 'var(--font-body)',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: 'var(--c-danger)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                        }}
+                      >
+                        <Trash2 size={13} color="var(--c-danger)" />
+                        <span>Delete</span>
                       </button>
                     </div>
                   </div>
@@ -2244,7 +2278,28 @@ function ProfileScreen({
 
       {/* Danger Zone Actions */}
       <div style={{ marginTop: 40, paddingTop: 18, borderTop: '1px solid var(--c-hairline)' }}>
-        {group && (
+        {group && isCR && (
+          <button
+            onClick={onDeleteGroup}
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--c-danger)',
+              padding: '8px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            <Trash2 size={15} color="var(--c-danger)" />
+            <span>Delete group</span>
+          </button>
+        )}
+        {group && !isCR && (
           <button
             onClick={onLeave}
             style={{
@@ -2287,32 +2342,49 @@ function ProfileScreen({
    CONFIRMATION ACTION SHEET
 ----------------------------------------------------------------*/
 interface ConfirmSheetProps {
+  title?: string;
   description: string;
   confirmLabel: string;
+  disabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-function ConfirmSheet({ description, confirmLabel, onCancel, onConfirm }: ConfirmSheetProps) {
+function ConfirmSheet({ title, description, confirmLabel, disabled, onCancel, onConfirm }: ConfirmSheetProps) {
   return (
     <div style={{ paddingBottom: 8 }}>
+      {title && (
+        <div
+          style={{
+            fontFamily: 'var(--font-head)',
+            fontSize: 17,
+            fontWeight: 700,
+            color: 'var(--c-text)',
+            textAlign: 'center',
+            padding: '8px 20px 4px',
+          }}
+        >
+          {title}
+        </div>
+      )}
       <div
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: 12.5,
+          fontSize: 13,
           color: 'var(--c-text-faint)',
           textAlign: 'center',
           lineHeight: 1.5,
-          padding: '4px 32px 18px',
+          padding: '4px 28px 18px',
         }}
       >
         {description}
       </div>
       <button
         onClick={onConfirm}
+        disabled={disabled}
         style={{
           width: '100%',
-          cursor: 'pointer',
+          cursor: disabled ? 'default' : 'pointer',
           fontFamily: 'var(--font-body)',
           fontSize: 15,
           fontWeight: 600,
@@ -2321,15 +2393,17 @@ function ConfirmSheet({ description, confirmLabel, onCancel, onConfirm }: Confir
           borderTop: '1px solid var(--c-hairline)',
           textAlign: 'center',
           display: 'block',
+          opacity: disabled ? 0.6 : 1,
         }}
       >
         {confirmLabel}
       </button>
       <button
         onClick={onCancel}
+        disabled={disabled}
         style={{
           width: '100%',
-          cursor: 'pointer',
+          cursor: disabled ? 'default' : 'pointer',
           fontFamily: 'var(--font-body)',
           fontSize: 15,
           color: 'var(--c-text-soft)',
@@ -2469,7 +2543,8 @@ export function App() {
 
   const [joinOpen, setJoinOpen] = useState(false);
   const [createClassOpen, setCreateClassOpen] = useState(false);
-  const [confirm, setConfirm] = useState<'leave' | 'logout' | null>(null);
+  const [confirm, setConfirm] = useState<'leave' | 'logout' | 'deleteGroup' | null>(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -2640,6 +2715,21 @@ export function App() {
     setActiveCategory(null);
     setConfirm(null);
     showToast('Left class');
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!currentGroup || isDeletingGroup) return;
+    setIsDeletingGroup(true);
+    const res = await store.deleteGroup(currentGroup.id);
+    setIsDeletingGroup(false);
+    if (res.success) {
+      setConfirm(null);
+      setActiveCourseId(null);
+      setActiveCategory(null);
+      showToast('Group deleted successfully.');
+    } else {
+      showToast(res.error || 'Failed to delete group.');
+    }
   };
 
   const handleLogout = () => {
@@ -2825,6 +2915,7 @@ export function App() {
             onEnableNotifications={handleEnableNotifications}
             onCopyCode={handleCopyCode}
             onLeave={() => setConfirm('leave')}
+            onDeleteGroup={() => setConfirm('deleteGroup')}
             onLogout={() => setConfirm('logout')}
             onToggleApprovalMode={(mode) => {
               if (currentGroup) {
@@ -2917,7 +3008,17 @@ export function App() {
       </Sheet>
 
       {/* Confirm Action Sheet */}
-      <Sheet open={!!confirm} onClose={() => setConfirm(null)}>
+      <Sheet open={!!confirm} onClose={() => { if (!isDeletingGroup) setConfirm(null); }}>
+        {confirm === 'deleteGroup' && (
+          <ConfirmSheet
+            title="Delete this group permanently?"
+            description="This will permanently delete the class and all its data (courses, announcements, deadlines, and membership records) for all members. This action cannot be undone."
+            confirmLabel={isDeletingGroup ? 'Deleting group...' : 'Delete Group'}
+            disabled={isDeletingGroup}
+            onCancel={() => { if (!isDeletingGroup) setConfirm(null); }}
+            onConfirm={handleDeleteGroup}
+          />
+        )}
         {confirm === 'leave' && (
           <ConfirmSheet
             description="You'll lose access to this class's academic updates. You can rejoin later with the group code, if it hasn't expired."

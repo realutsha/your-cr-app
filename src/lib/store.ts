@@ -2,9 +2,11 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   where,
   onSnapshot,
@@ -282,6 +284,24 @@ class AppStore {
           if (idx >= 0) this.groups[idx] = g;
           else this.groups.push(g);
           this.persist();
+          this.notify();
+        } else {
+          // Group was deleted on the server by the CR
+          this.groups = this.groups.filter((item) => item.id !== currentGroupId);
+          if (this.currentUser && this.currentUser.current_group_id === currentGroupId) {
+            this.currentUser.current_group_id = null;
+            this.currentUser.role = 'student';
+            if (db) {
+              updateDoc(doc(db, 'users', this.currentUser.id), { current_group_id: null, role: 'student' }).catch(() => {});
+            }
+          }
+          this.courses = [];
+          this.updates = [];
+          this.views = [];
+          this.members = [];
+          this.requests = [];
+          this.persist();
+          this.clearFirestoreListeners();
           this.notify();
         }
       });
@@ -698,6 +718,95 @@ class AppStore {
     this.persist();
     this.notify();
     this.clearFirestoreListeners();
+    return { success: true };
+  }
+
+  public async deleteGroup(groupId: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.currentUser) {
+      return { success: false, error: 'You must be signed in to perform this action.' };
+    }
+
+    const currentGroup = this.groups.find((g) => g.id === groupId);
+    if (!currentGroup) {
+      return { success: false, error: 'Group not found.' };
+    }
+
+    // Strict Authorization: Only the CR host who owns this group can delete it
+    if (currentGroup.host_id !== this.currentUser.id) {
+      return { success: false, error: 'Unauthorized: Only the CR who created this class can delete it.' };
+    }
+
+    const currentUserId = this.currentUser.id;
+
+    if (db) {
+      try {
+        // Collect all related documents across collections for this group
+        const [
+          coursesSnap,
+          updatesSnap,
+          membersSnap,
+          requestsSnap,
+          viewsSnap,
+        ] = await Promise.all([
+          getDocs(query(collection(db, 'courses'), where('group_id', '==', groupId))),
+          getDocs(query(collection(db, 'updates'), where('group_id', '==', groupId))),
+          getDocs(query(collection(db, 'groupMembers'), where('group_id', '==', groupId))),
+          getDocs(query(collection(db, 'joinRequests'), where('group_id', '==', groupId))),
+          getDocs(query(collection(db, 'updateViews'), where('group_id', '==', groupId))),
+        ]);
+
+        // Batch delete child documents
+        const batch = writeBatch(db);
+
+        coursesSnap.forEach((d) => batch.delete(d.ref));
+        updatesSnap.forEach((d) => batch.delete(d.ref));
+        membersSnap.forEach((d) => batch.delete(d.ref));
+        requestsSnap.forEach((d) => batch.delete(d.ref));
+        viewsSnap.forEach((d) => batch.delete(d.ref));
+
+        // Delete parent group document
+        batch.delete(doc(db, 'groups', groupId));
+
+        // Update CR's user document
+        batch.update(doc(db, 'users', currentUserId), {
+          current_group_id: null,
+          role: 'student',
+        });
+
+        await batch.commit();
+      } catch (err: unknown) {
+        console.error('Failed to delete group from Firestore:', err);
+        const e = err as { message?: string };
+        return {
+          success: false,
+          error: e.message || 'Failed to delete group from server. Please check your connection and try again.',
+        };
+      }
+    }
+
+    // Update local state and memory store
+    this.groups = this.groups.filter((g) => g.id !== groupId);
+    this.courses = this.courses.filter((c) => c.group_id !== groupId);
+    this.updates = this.updates.filter((u) => u.group_id !== groupId);
+    this.members = this.members.filter((m) => m.group_id !== groupId);
+    this.requests = this.requests.filter((r) => r.group_id !== groupId);
+    this.views = this.views.filter((v) => !v.update_id || this.updates.some((u) => u.id === v.update_id));
+
+    if (this.currentUser.current_group_id === groupId) {
+      this.currentUser.current_group_id = null;
+      this.currentUser.role = 'student';
+    }
+
+    const u = this.users.find((user) => user.id === currentUserId);
+    if (u) {
+      u.current_group_id = null;
+      u.role = 'student';
+    }
+
+    this.persist();
+    this.clearFirestoreListeners();
+    this.notify();
+
     return { success: true };
   }
 
