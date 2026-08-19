@@ -131,6 +131,12 @@ class AppStore {
     } catch {}
   }
 
+  private isSyncing = false;
+
+  public isSyncingData(): boolean {
+    return this.isSyncing;
+  }
+
   private initFirebaseAuthListener() {
     const authInstance = auth;
     if (!isFirebaseConfigured || !authInstance) {
@@ -140,34 +146,50 @@ class AppStore {
     }
 
     // 1. Immediately listen to onAuthStateChanged for instant session restore
-    onAuthStateChanged(authInstance, async (firebaseUser: FirebaseUser | null) => {
-      try {
-        if (firebaseUser) {
-          const email = (firebaseUser.email || '').trim().toLowerCase();
-          const isVerified = Boolean(firebaseUser.emailVerified);
+    onAuthStateChanged(authInstance, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const email = (firebaseUser.email || '').trim().toLowerCase();
+        const isVerified = Boolean(firebaseUser.emailVerified);
 
-          if (isDiuEmail(email) && isVerified) {
-            const username = extractUsernameFromEmail(email);
-            await this.syncFirebaseUserProfile(firebaseUser.uid, email, username);
-          } else {
-            // Unauthorized or non-DIU email: immediately sign out
-            await firebaseSignOut(authInstance).catch(() => {});
-            this.currentUser = null;
-            this.clearFirestoreListeners();
-            this.persist();
-            if (!this.authErrorMessage) {
-              this.authErrorMessage =
-                'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted.';
-            }
-            this.notify();
+        if (isDiuEmail(email) && isVerified) {
+          const username = extractUsernameFromEmail(email);
+
+          // Optimistically restore session immediately so UI shell renders in 0ms
+          if (!this.currentUser || this.currentUser.id !== firebaseUser.uid) {
+            this.currentUser = {
+              id: firebaseUser.uid,
+              email,
+              username,
+              role: this.currentUser?.role || 'student',
+              current_group_id: this.currentUser?.current_group_id || null,
+              created_at: new Date().toISOString(),
+            };
           }
+          this.authReady = true;
+          this.authErrorMessage = null;
+          this.notify();
+
+          // Sync full profile & groups asynchronously in background
+          this.syncFirebaseUserProfile(firebaseUser.uid, email, username).catch((err) => {
+            console.warn('Background profile sync error:', err);
+          });
         } else {
+          // Unauthorized or non-DIU email: immediately sign out
+          firebaseSignOut(authInstance).catch(() => {});
           this.currentUser = null;
           this.clearFirestoreListeners();
           this.persist();
+          if (!this.authErrorMessage) {
+            this.authErrorMessage =
+              'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted.';
+          }
+          this.authReady = true;
           this.notify();
         }
-      } finally {
+      } else {
+        this.currentUser = null;
+        this.clearFirestoreListeners();
+        this.persist();
         this.authReady = true;
         this.notify();
       }
@@ -221,6 +243,9 @@ class AppStore {
       return defaultUser;
     }
 
+    this.isSyncing = true;
+    this.notify();
+
     try {
       const userRef = doc(dbInstance, 'users', uid);
       const userSnap = await getDoc(userRef);
@@ -241,12 +266,16 @@ class AppStore {
         userRole = data.role || 'student';
       }
 
-      // If current_group_id is null on user doc, check if user is host of an active group or an approved member
+      // If current_group_id is null on user doc, check in parallel whether user is host or approved member
       if (!currentGroupId) {
-        // 1. Check if user is host of an active group
-        const hostGroupsSnap = await getDocs(
-          query(collection(dbInstance, 'groups'), where('host_id', '==', uid), where('status', '==', 'active'))
-        ).catch(() => null);
+        const [hostGroupsSnap, memberSnap] = await Promise.all([
+          getDocs(
+            query(collection(dbInstance, 'groups'), where('host_id', '==', uid), where('status', '==', 'active'))
+          ).catch(() => null),
+          getDocs(
+            query(collection(dbInstance, 'groupMembers'), where('user_id', '==', uid), where('status', '==', 'approved'))
+          ).catch(() => null),
+        ]);
 
         if (hostGroupsSnap && !hostGroupsSnap.empty) {
           const groupDoc = hostGroupsSnap.docs[0];
@@ -256,18 +285,11 @@ class AppStore {
           const gIdx = this.groups.findIndex((g) => g.id === groupDoc.id);
           if (gIdx >= 0) this.groups[gIdx] = groupData;
           else this.groups.push(groupData);
-          await updateDoc(userRef, { current_group_id: currentGroupId, role: 'cr' }).catch(() => {});
-        } else {
-          // 2. Check if user is an approved member of a group
-          const memberSnap = await getDocs(
-            query(collection(dbInstance, 'groupMembers'), where('user_id', '==', uid), where('status', '==', 'approved'))
-          ).catch(() => null);
-
-          if (memberSnap && !memberSnap.empty) {
-            const mData = memberSnap.docs[0].data() as GroupMember;
-            currentGroupId = mData.group_id;
-            await updateDoc(userRef, { current_group_id: currentGroupId }).catch(() => {});
-          }
+          updateDoc(userRef, { current_group_id: currentGroupId, role: 'cr' }).catch(() => {});
+        } else if (memberSnap && !memberSnap.empty) {
+          const mData = memberSnap.docs[0].data() as GroupMember;
+          currentGroupId = mData.group_id;
+          updateDoc(userRef, { current_group_id: currentGroupId }).catch(() => {});
         }
       }
 
@@ -282,16 +304,20 @@ class AppStore {
             ? (userSnap.data()?.created_at as string)
             : new Date().toISOString(),
       };
-      await updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
+      updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
     } catch (e) {
       console.warn('Could not sync Firestore user profile:', e);
-      this.currentUser = defaultUser;
+      if (!this.currentUser) {
+        this.currentUser = defaultUser;
+      }
+    } finally {
+      this.isSyncing = false;
+      this.persist();
+      this.notify();
+      this.attachFirestoreListeners();
     }
 
-    this.persist();
-    this.notify();
-    this.attachFirestoreListeners();
-    return this.currentUser;
+    return this.currentUser || defaultUser;
   }
 
   private attachFirestoreListeners() {

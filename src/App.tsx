@@ -2584,7 +2584,13 @@ export function App() {
       showToast(`${title}: ${body}`);
     });
 
+    // Fast fallback: if network is slow or offline, render UI shell in max 1 second
+    const timeoutTimer = setTimeout(() => {
+      setAuthReady(true);
+    }, 1000);
+
     return () => {
+      clearTimeout(timeoutTimer);
       unsubStore();
       unsubTheme();
       unsubFCM();
@@ -2599,7 +2605,9 @@ export function App() {
   // Open update details & automatically record view for student
   const handleOpenUpdate = (u: AcademicUpdate) => {
     setSelectedUpdate(u);
-    store.recordView(u.id);
+    if (!isCR) {
+      store.recordView(u.id);
+    }
   };
 
   const handleEnableNotifications = async () => {
@@ -2628,38 +2636,26 @@ export function App() {
     title: string;
     date: string;
     time: string;
-    topic: string;
-    description: string;
+    topic?: string;
+    description?: string;
     resource_url?: string;
-    status: UpdateStatus;
+    status?: UpdateStatus;
   }) => {
     if (data.id) {
-      const res = store.updateAcademicUpdate(data.id, data);
-      if (res.error) {
-        showToast(res.error);
-      } else {
-        setComposeOpen(false);
-        setEditingUpdate(null);
-        if (selectedUpdate && selectedUpdate.id === data.id && res.update) {
-          setSelectedUpdate(res.update);
-        }
-        showToast('Update saved');
-      }
+      store.updateAcademicUpdate(data.id, data);
+      showToast('Announcement updated');
     } else {
-      const res = store.createAcademicUpdate(data);
-      if (res.error) {
-        showToast(res.error);
-      } else {
-        setComposeOpen(false);
-        showToast(`Posted ${data.category.toUpperCase()} update`);
-      }
+      store.createAcademicUpdate(data);
+      showToast('Announcement posted');
     }
+    setComposeOpen(false);
+    setEditingUpdate(null);
   };
 
   const handleDeleteUpdate = (id: string) => {
     store.deleteAcademicUpdate(id);
     setSelectedUpdate(null);
-    showToast('Update deleted');
+    showToast('Announcement deleted');
   };
 
   const handleCreateCourse = (name: string) => {
@@ -2667,26 +2663,25 @@ export function App() {
     if (res.error) {
       showToast(res.error);
     } else {
-      showToast(`Course "${name}" created`);
+      setEditingCourse(null);
+      showToast('Course added');
     }
   };
 
-  const handleUpdateCourse = (courseId: string, name: string) => {
-    const res = store.updateCourse(courseId, name);
+  const handleUpdateCourse = (id: string, name: string) => {
+    const res = store.updateCourse(id, name);
     if (res.error) {
       showToast(res.error);
     } else {
-      setManageCoursesOpen(false);
       setEditingCourse(null);
-      showToast('Course name updated');
+      showToast('Course updated');
     }
   };
 
-  const handleDeleteCourse = (courseId: string) => {
-    store.deleteCourse(courseId);
-    setManageCoursesOpen(false);
+  const handleDeleteCourse = (id: string) => {
+    store.deleteCourse(id);
     setEditingCourse(null);
-    if (activeCourseId === courseId) {
+    if (activeCourseId === id) {
       setActiveCourseId(null);
       setActiveCategory(null);
     }
@@ -2767,29 +2762,19 @@ export function App() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 14,
+          gap: 12,
         }}
       >
         <div
           style={{
-            width: 28,
-            height: 28,
+            width: 24,
+            height: 24,
             borderRadius: '50%',
-            border: '2.5px solid var(--c-hairline-strong)',
+            border: '2px solid var(--c-hairline-strong)',
             borderTopColor: 'var(--c-accent)',
-            animation: 'spin 0.8s linear infinite',
+            animation: 'spin 0.6s linear infinite',
           }}
         />
-        <div
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--c-text-soft)',
-          }}
-        >
-          Connecting to Class Announcement Hub...
-        </div>
       </div>
     );
   }
