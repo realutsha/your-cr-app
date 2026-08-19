@@ -129,7 +129,7 @@ class AppStore {
     } catch {}
   }
 
-  private async initFirebaseAuthListener() {
+  private initFirebaseAuthListener() {
     const authInstance = auth;
     if (!isFirebaseConfigured || !authInstance) {
       this.authReady = true;
@@ -137,35 +137,7 @@ class AppStore {
       return;
     }
 
-    // 1. Process redirect result first if returning from a Google redirect OAuth flow
-    try {
-      const credential = await getRedirectResult(authInstance);
-      if (credential && credential.user) {
-        const user = credential.user;
-        const email = (user.email || '').trim().toLowerCase();
-        const isVerified = Boolean(user.emailVerified);
-
-        if (isDiuEmail(email) && isVerified) {
-          const username = extractUsernameFromEmail(email);
-          await this.syncFirebaseUserProfile(user.uid, email, username);
-          this.authErrorMessage = null;
-        } else {
-          await firebaseSignOut(authInstance).catch(() => {});
-          this.currentUser = null;
-          this.clearFirestoreListeners();
-          this.authErrorMessage =
-            'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted.';
-          this.notify();
-        }
-      }
-    } catch (err: unknown) {
-      console.warn('[Firebase Auth] Redirect result error:', err);
-      const e = err as { code?: string; message?: string };
-      this.authErrorMessage = this.formatFirebaseAuthError(e);
-      this.notify();
-    }
-
-    // 2. Listen to active auth state changes
+    // 1. Immediately listen to onAuthStateChanged for instant session restore
     onAuthStateChanged(authInstance, async (firebaseUser: FirebaseUser | null) => {
       try {
         if (firebaseUser) {
@@ -198,6 +170,35 @@ class AppStore {
         this.notify();
       }
     });
+
+    // 2. In parallel, process redirect result if returning from a redirect OAuth flow
+    getRedirectResult(authInstance)
+      .then(async (credential) => {
+        if (credential && credential.user) {
+          const user = credential.user;
+          const email = (user.email || '').trim().toLowerCase();
+          const isVerified = Boolean(user.emailVerified);
+
+          if (isDiuEmail(email) && isVerified) {
+            const username = extractUsernameFromEmail(email);
+            await this.syncFirebaseUserProfile(user.uid, email, username);
+            this.authErrorMessage = null;
+          } else {
+            await firebaseSignOut(authInstance).catch(() => {});
+            this.currentUser = null;
+            this.clearFirestoreListeners();
+            this.authErrorMessage =
+              'Access restricted: Only verified Daffodil International University Google accounts (@diu.edu.bd) are permitted.';
+            this.notify();
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('[Firebase Auth] Redirect result error:', err);
+        const e = err as { code?: string; message?: string };
+        this.authErrorMessage = this.formatFirebaseAuthError(e);
+        this.notify();
+      });
   }
 
   private async syncFirebaseUserProfile(uid: string, email: string, username: string): Promise<User> {
@@ -418,15 +419,7 @@ class AppStore {
     }
 
     try {
-      // 120-second safety timeout wrapper to allow ample time for password + 2FA entry
-      const popupPromise = signInWithPopup(authInstance, googleProvider);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('auth/timeout'));
-        }, 120000);
-      });
-
-      const cred = await Promise.race([popupPromise, timeoutPromise]);
+      const cred = await signInWithPopup(authInstance, googleProvider);
       const user = cred.user;
       const email = (user.email || '').trim().toLowerCase();
       const isVerified = Boolean(user.emailVerified);
@@ -460,14 +453,11 @@ class AppStore {
     const code = err.code || '';
     const message = err.message || '';
 
-    if (message === 'auth/timeout') {
-      return 'Authentication timed out. If the Google popup did not appear, please allow popups or try "Sign in with redirect".';
-    }
     if (code === 'auth/popup-closed-by-user' || message.includes('auth/popup-closed-by-user')) {
       return 'Sign-in cancelled. The Google sign-in window was closed.';
     }
     if (code === 'auth/popup-blocked' || message.includes('auth/popup-blocked')) {
-      return 'Popup was blocked by your browser. Please allow popups for this site or try "Sign in with redirect".';
+      return 'Popup was blocked by your browser. Please allow popups for this site or use "Sign in with redirect" below.';
     }
     if (code === 'auth/cancelled-popup-request' || message.includes('auth/cancelled-popup-request')) {
       return 'Sign-in window was closed or interrupted by another request.';

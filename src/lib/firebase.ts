@@ -80,8 +80,6 @@ googleProvider.setCustomParameters({
   hd: 'diu.edu.bd',
   prompt: 'select_account',
 });
-googleProvider.addScope('email');
-googleProvider.addScope('profile');
 
 let messagingPromise: Promise<Messaging | null> | null = null;
 
