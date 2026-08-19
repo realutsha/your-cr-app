@@ -1778,16 +1778,45 @@ function JoinSheet({ onClose, onJoin }: JoinSheetProps) {
 
 interface CreateClassSheetProps {
   onClose: () => void;
-  onCreate: (name: string, mode: ApprovalMode) => void;
+  onCreate: (name: string, mode: ApprovalMode) => Promise<{ success: boolean; error?: string }>;
 }
 
 function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
   const [name, setName] = useState('');
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>('auto');
-  const canCreate = name.trim().length > 2;
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canCreate = name.trim().length >= 3;
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isCreating) return;
+
+    const cleanName = name.trim();
+    if (cleanName.length < 3) {
+      setError('Class name must be at least 3 characters long.');
+      return;
+    }
+
+    setError(null);
+    setIsCreating(true);
+
+    try {
+      const res = await onCreate(cleanName, approvalMode);
+      if (!res.success) {
+        setError(res.error || 'Failed to create class. Please try again.');
+      }
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'An unexpected error occurred while creating the class.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   return (
-    <div style={{ padding: '0 20px 32px' }}>
+    <form onSubmit={handleSubmit} style={{ padding: '0 20px 32px' }}>
       <div
         style={{
           display: 'flex',
@@ -1801,28 +1830,56 @@ function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button
-            disabled={!canCreate}
-            onClick={() => onCreate(name.trim(), approvalMode)}
+            type="submit"
+            disabled={!canCreate || isCreating}
             style={{
               fontFamily: 'var(--font-body)',
               fontSize: 14.5,
               fontWeight: 700,
-              color: canCreate ? 'var(--c-accent)' : 'var(--c-text-faint)',
-              cursor: canCreate ? 'pointer' : 'default',
+              color: canCreate && !isCreating ? 'var(--c-accent)' : 'var(--c-text-faint)',
+              cursor: canCreate && !isCreating ? 'pointer' : 'default',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
             }}
           >
-            Create
+            {isCreating ? 'Creating...' : 'Create'}
           </button>
-          <button onClick={onClose} style={{ color: 'var(--c-text-faint)', padding: 2 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ color: 'var(--c-text-faint)', padding: 2, border: 'none', background: 'transparent', cursor: 'pointer' }}
+          >
             <X size={16} />
           </button>
         </div>
       </div>
 
+      {error && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            color: 'var(--c-danger, #ef4444)',
+            border: '1px solid var(--c-danger, #ef4444)',
+            borderRadius: 8,
+            padding: '10px 14px',
+            fontSize: 13,
+            fontWeight: 500,
+            marginBottom: 16,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <Field
         label="Class Name"
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => {
+          setName(e.target.value);
+          if (error) setError(null);
+        }}
         placeholder="e.g. Software Engineering — Section I"
       />
 
@@ -1843,6 +1900,7 @@ function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
         </label>
         <div style={{ display: 'flex', gap: 14 }}>
           <button
+            type="button"
             onClick={() => setApprovalMode('auto')}
             style={{
               fontFamily: 'var(--font-body)',
@@ -1850,11 +1908,15 @@ function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
               fontWeight: approvalMode === 'auto' ? 700 : 500,
               color: approvalMode === 'auto' ? 'var(--c-text)' : 'var(--c-text-faint)',
               cursor: 'pointer',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
             }}
           >
             Automatic approval
           </button>
           <button
+            type="button"
             onClick={() => setApprovalMode('manual')}
             style={{
               fontFamily: 'var(--font-body)',
@@ -1862,6 +1924,9 @@ function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
               fontWeight: approvalMode === 'manual' ? 700 : 500,
               color: approvalMode === 'manual' ? 'var(--c-text)' : 'var(--c-text-faint)',
               cursor: 'pointer',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
             }}
           >
             Manual approval
@@ -1869,10 +1934,32 @@ function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
         </div>
       </div>
 
-      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12.5, color: 'var(--c-text-faint)', lineHeight: 1.5, marginTop: 14 }}>
+      <button
+        type="submit"
+        disabled={!canCreate || isCreating}
+        style={{
+          width: '100%',
+          marginTop: 10,
+          marginBottom: 14,
+          padding: '12px 16px',
+          borderRadius: 10,
+          background: canCreate && !isCreating ? 'var(--c-accent)' : 'var(--c-surface-strong)',
+          color: canCreate && !isCreating ? '#ffffff' : 'var(--c-text-faint)',
+          fontFamily: 'var(--font-body)',
+          fontSize: 14,
+          fontWeight: 600,
+          border: 'none',
+          cursor: canCreate && !isCreating ? 'pointer' : 'default',
+          transition: 'all 150ms ease',
+        }}
+      >
+        {isCreating ? 'Creating class...' : 'Create Class'}
+      </button>
+
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12.5, color: 'var(--c-text-faint)', lineHeight: 1.5 }}>
         A 6-character code will be generated automatically. Every class exists for exactly 4 months.
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -2701,13 +2788,21 @@ export function App() {
     }
   };
 
-  const handleCreateClass = async (name: string, mode: ApprovalMode) => {
+  const handleCreateClass = async (
+    name: string,
+    mode: ApprovalMode
+  ): Promise<{ success: boolean; error?: string }> => {
     const res = await store.createGroup(name, mode);
     if (res.error) {
       showToast(res.error);
+      return { success: false, error: res.error };
     } else {
       setCreateClassOpen(false);
+      setActiveCourseId(null);
+      setActiveCategory(null);
+      setScreen('home');
       showToast(`Class created (${res.group?.code})`);
+      return { success: true };
     }
   };
 

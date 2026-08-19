@@ -10,7 +10,6 @@ import {
   query,
   where,
   onSnapshot,
-  runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -631,7 +630,14 @@ class AppStore {
     name: string,
     approvalMode: ApprovalMode = 'auto'
   ): Promise<{ group?: Group; error?: string }> {
-    if (!this.currentUser) return { error: 'Not authenticated' };
+    if (!this.currentUser) {
+      return { error: 'Not authenticated. Please sign in with your DIU account.' };
+    }
+
+    const trimmedName = name.trim();
+    if (trimmedName.length < 3) {
+      return { error: 'Class name must be at least 3 characters long.' };
+    }
 
     const code = generateGroupCode(6);
     const createdAt = new Date().toISOString();
@@ -640,7 +646,7 @@ class AppStore {
 
     const newGroup: Group = {
       id: groupId,
-      name: name.trim(),
+      name: trimmedName,
       code,
       host_id: this.currentUser.id,
       host_username: this.currentUser.username,
@@ -660,38 +666,40 @@ class AppStore {
       email: this.currentUser.email,
     };
 
-    // Update local state & role
-    this.currentUser.role = 'cr';
-    this.currentUser.current_group_id = groupId;
-    this.groups.push(newGroup);
-    this.members.push(hostMember);
-
-    // Sync with Firestore
+    // 1. Sync with Firestore first
     const dbInstance = db;
     if (dbInstance) {
-      const userRef = doc(dbInstance, 'users', this.currentUser.id);
       const groupRef = doc(dbInstance, 'groups', groupId);
       const memberRef = doc(dbInstance, 'groupMembers', `${groupId}_${this.currentUser.id}`);
+      const userRef = doc(dbInstance, 'users', this.currentUser.id);
 
       try {
-        await runTransaction(dbInstance, async (tx) => {
-          tx.update(userRef, { current_group_id: groupId, role: 'cr' });
-          tx.set(groupRef, newGroup);
-          tx.set(memberRef, { ...hostMember, expires_at: expiresAt });
-        });
-      } catch (e) {
-        console.warn('Firestore group creation transaction failed, falling back to batch:', e);
-        try {
-          const batch = writeBatch(dbInstance);
-          batch.update(userRef, { current_group_id: groupId, role: 'cr' });
-          batch.set(groupRef, newGroup);
-          batch.set(memberRef, { ...hostMember, expires_at: expiresAt });
-          await batch.commit();
-        } catch (batchErr) {
-          console.error('Failed to create group in Firestore:', batchErr);
-        }
+        // Step A: Create group document
+        await setDoc(groupRef, newGroup);
+        // Step B: Create host member record
+        await setDoc(memberRef, { ...hostMember, expires_at: expiresAt });
+        // Step C: Update user profile
+        await updateDoc(userRef, { current_group_id: groupId, role: 'cr' });
+      } catch (err: unknown) {
+        console.error('Firestore class creation failed:', err);
+        const e = err as { message?: string };
+        return {
+          error: e?.message || 'Failed to save class to Firestore. Please check your connection and try again.',
+        };
       }
     }
+
+    // 2. Update local state & role upon verified Firestore write
+    this.currentUser.role = 'cr';
+    this.currentUser.current_group_id = groupId;
+
+    const gIdx = this.groups.findIndex((g) => g.id === groupId);
+    if (gIdx >= 0) this.groups[gIdx] = newGroup;
+    else this.groups.push(newGroup);
+
+    const mIdx = this.members.findIndex((m) => m.group_id === groupId && m.user_id === this.currentUser!.id);
+    if (mIdx >= 0) this.members[mIdx] = hostMember;
+    else this.members.push(hostMember);
 
     this.persist();
     this.notify();
