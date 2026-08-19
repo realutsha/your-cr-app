@@ -666,30 +666,60 @@ class AppStore {
       email: this.currentUser.email,
     };
 
-    // 1. Sync with Firestore first
+    // Persist to Firestore
     const dbInstance = db;
     if (dbInstance) {
+      const userRef = doc(dbInstance, 'users', this.currentUser.id);
       const groupRef = doc(dbInstance, 'groups', groupId);
       const memberRef = doc(dbInstance, 'groupMembers', `${groupId}_${this.currentUser.id}`);
-      const userRef = doc(dbInstance, 'users', this.currentUser.id);
 
       try {
-        // Step A: Create group document
-        await setDoc(groupRef, newGroup);
-        // Step B: Create host member record
-        await setDoc(memberRef, { ...hostMember, expires_at: expiresAt });
-        // Step C: Update user profile
+        // Ensure user document exists before attempting group creation.
+        // syncFirebaseUserProfile runs in the background and may not have
+        // completed yet. If the doc doesn't exist, updateDoc will fail
+        // with NOT_FOUND and the security rule for create rejects role:'cr'.
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            id: this.currentUser.id,
+            email: this.currentUser.email,
+            username: this.currentUser.username,
+            role: 'student',
+            current_group_id: null,
+            created_at: serverTimestamp(),
+            last_active_at: serverTimestamp(),
+          });
+        }
+
+        // Phase 1: Atomically create the group + host membership.
+        // These must exist before the user update so that the Firestore
+        // security rule isGroupHost() can verify the group document.
+        const batch = writeBatch(dbInstance);
+        batch.set(groupRef, newGroup);
+        batch.set(memberRef, { ...hostMember, expires_at: expiresAt });
+        await batch.commit();
+
+        // Phase 2: Update the user's profile to point to the new group.
+        // Now the group document is committed and isGroupHost() will pass.
         await updateDoc(userRef, { current_group_id: groupId, role: 'cr' });
       } catch (err: unknown) {
         console.error('Firestore class creation failed:', err);
-        const e = err as { message?: string };
-        return {
-          error: e?.message || 'Failed to save class to Firestore. Please check your connection and try again.',
-        };
+        const fireErr = err as { code?: string; message?: string };
+        let userMessage: string;
+        if (fireErr.code === 'permission-denied' || fireErr.message?.includes('PERMISSION_DENIED')) {
+          userMessage = 'Permission denied. Please ensure you are signed in with a valid @diu.edu.bd account and try again.';
+        } else if (fireErr.code === 'not-found' || fireErr.message?.includes('NOT_FOUND')) {
+          userMessage = 'Your account profile was not found. Please log out, log in again, and retry.';
+        } else if (fireErr.code === 'unavailable' || fireErr.message?.includes('unavailable')) {
+          userMessage = 'Could not reach the server. Please check your internet connection and try again.';
+        } else {
+          userMessage = fireErr.message || 'Failed to create class. Please try again.';
+        }
+        return { error: userMessage };
       }
     }
 
-    // 2. Update local state & role upon verified Firestore write
+    // Update local state upon verified Firestore write
     this.currentUser.role = 'cr';
     this.currentUser.current_group_id = groupId;
 
@@ -767,17 +797,34 @@ class AppStore {
         email: this.currentUser.email,
       };
 
-      this.currentUser.current_group_id = group.id;
-      this.members.push(newMember);
-
       if (dbInstance) {
         const userRef = doc(dbInstance, 'users', this.currentUser.id);
         const memberRef = doc(dbInstance, 'groupMembers', `${group.id}_${this.currentUser.id}`);
-        await Promise.all([
-          setDoc(memberRef, { ...newMember, expires_at: group.expires_at }),
-          updateDoc(userRef, { current_group_id: group.id }),
-        ]).catch((e) => console.warn('Failed to save group membership:', e));
+        try {
+          // Ensure user doc exists (may not if background sync hasn't completed)
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              id: this.currentUser.id,
+              email: this.currentUser.email,
+              username: this.currentUser.username,
+              role: 'student',
+              current_group_id: null,
+              created_at: serverTimestamp(),
+              last_active_at: serverTimestamp(),
+            });
+          }
+          await setDoc(memberRef, { ...newMember, expires_at: group.expires_at });
+          await updateDoc(userRef, { current_group_id: group.id });
+        } catch (err) {
+          console.error('Failed to save group membership:', err);
+          const e = err as { message?: string };
+          return { error: e?.message || 'Failed to join class. Please try again.' };
+        }
       }
+
+      this.currentUser.current_group_id = group.id;
+      this.members.push(newMember);
 
       this.persist();
       this.notify();
