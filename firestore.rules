@@ -30,9 +30,14 @@ service cloud.firestore {
       // On create: must be verified DIU user matching UID and authenticated email
       allow create: if isOwner(userId) && 
                        request.resource.data.email.matches('(?i)^' + request.auth.token.email + '$');
-      // On update: username and email are immutable (cannot be altered)
-      allow update: if isOwner(userId) && 
-                       request.resource.data.email.matches('(?i)^' + resource.data.email + '$');
+      // On update: user can update own profile, or group host can clear current_group_id
+      allow update: if isDiuUser() && (
+        (isOwner(userId) && request.resource.data.email.matches('(?i)^' + resource.data.email + '$')) ||
+        (resource.data.current_group_id != null &&
+         isGroupHost(resource.data.current_group_id) &&
+         request.resource.data.current_group_id == null &&
+         request.resource.data.email.matches('(?i)^' + resource.data.email + '$'))
+      );
       allow delete: if false; // Permanent identity preservation
     }
 

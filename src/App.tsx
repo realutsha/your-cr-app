@@ -2278,6 +2278,24 @@ function ProfileScreen({
 
       {/* Danger Zone Actions */}
       <div style={{ marginTop: 40, paddingTop: 18, borderTop: '1px solid var(--c-hairline)' }}>
+        {group && (
+          <button
+            onClick={onLeave}
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'var(--c-danger)',
+              padding: '8px 0',
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            Leave class
+          </button>
+        )}
         {group && isCR && (
           <button
             onClick={onDeleteGroup}
@@ -2296,25 +2314,7 @@ function ProfileScreen({
             }}
           >
             <Trash2 size={15} color="var(--c-danger)" />
-            <span>Delete group</span>
-          </button>
-        )}
-        {group && !isCR && (
-          <button
-            onClick={onLeave}
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--c-danger)',
-              padding: '8px 0',
-              display: 'block',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            Leave class
+            <span>Delete Group</span>
           </button>
         )}
         <button
@@ -2726,6 +2726,7 @@ export function App() {
       setConfirm(null);
       setActiveCourseId(null);
       setActiveCategory(null);
+      setScreen('home');
       showToast('Group deleted successfully.');
     } else {
       showToast(res.error || 'Failed to delete group.');
@@ -3011,8 +3012,8 @@ export function App() {
       <Sheet open={!!confirm} onClose={() => { if (!isDeletingGroup) setConfirm(null); }}>
         {confirm === 'deleteGroup' && (
           <ConfirmSheet
-            title="Delete this group permanently?"
-            description="This will permanently delete the class and all its data (courses, announcements, deadlines, and membership records) for all members. This action cannot be undone."
+            title="Delete this group?"
+            description="This will permanently delete the group for all members. This action cannot be undone."
             confirmLabel={isDeletingGroup ? 'Deleting group...' : 'Delete Group'}
             disabled={isDeletingGroup}
             onCancel={() => { if (!isDeletingGroup) setConfirm(null); }}

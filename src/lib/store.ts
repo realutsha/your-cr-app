@@ -738,7 +738,8 @@ class AppStore {
 
     const currentUserId = this.currentUser.id;
 
-    if (db) {
+    const dbInstance = db;
+    if (dbInstance) {
       try {
         // Collect all related documents across collections for this group
         const [
@@ -748,27 +749,35 @@ class AppStore {
           requestsSnap,
           viewsSnap,
         ] = await Promise.all([
-          getDocs(query(collection(db, 'courses'), where('group_id', '==', groupId))),
-          getDocs(query(collection(db, 'updates'), where('group_id', '==', groupId))),
-          getDocs(query(collection(db, 'groupMembers'), where('group_id', '==', groupId))),
-          getDocs(query(collection(db, 'joinRequests'), where('group_id', '==', groupId))),
-          getDocs(query(collection(db, 'updateViews'), where('group_id', '==', groupId))),
+          getDocs(query(collection(dbInstance, 'courses'), where('group_id', '==', groupId))),
+          getDocs(query(collection(dbInstance, 'updates'), where('group_id', '==', groupId))),
+          getDocs(query(collection(dbInstance, 'groupMembers'), where('group_id', '==', groupId))),
+          getDocs(query(collection(dbInstance, 'joinRequests'), where('group_id', '==', groupId))),
+          getDocs(query(collection(dbInstance, 'updateViews'), where('group_id', '==', groupId))),
         ]);
 
-        // Batch delete child documents
-        const batch = writeBatch(db);
+        // Batch delete child documents and reset member profiles
+        const batch = writeBatch(dbInstance);
 
         coursesSnap.forEach((d) => batch.delete(d.ref));
         updatesSnap.forEach((d) => batch.delete(d.ref));
-        membersSnap.forEach((d) => batch.delete(d.ref));
+        membersSnap.forEach((d) => {
+          const memberData = d.data() as GroupMember;
+          if (memberData && memberData.user_id && memberData.user_id !== currentUserId) {
+            batch.update(doc(dbInstance, 'users', memberData.user_id), {
+              current_group_id: null,
+            });
+          }
+          batch.delete(d.ref);
+        });
         requestsSnap.forEach((d) => batch.delete(d.ref));
         viewsSnap.forEach((d) => batch.delete(d.ref));
 
         // Delete parent group document
-        batch.delete(doc(db, 'groups', groupId));
+        batch.delete(doc(dbInstance, 'groups', groupId));
 
         // Update CR's user document
-        batch.update(doc(db, 'users', currentUserId), {
+        batch.update(doc(dbInstance, 'users', currentUserId), {
           current_group_id: null,
           role: 'student',
         });
