@@ -41,6 +41,22 @@ import type {
 } from './types';
 import { AuthModal } from './components/auth/AuthModal';
 
+const CANONICAL_DOMAIN = 'class-mate-woad.vercel.app';
+
+// Canonical domain routing: automatically redirect any temporary Vercel preview URLs
+// to the stable production domain so OAuth and persistence are always centralized.
+if (typeof window !== 'undefined') {
+  const hostname = window.location.hostname;
+  if (
+    hostname.endsWith('.vercel.app') &&
+    hostname !== CANONICAL_DOMAIN &&
+    !hostname.includes('localhost')
+  ) {
+    const targetUrl = `https://${CANONICAL_DOMAIN}${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(targetUrl);
+  }
+}
+
 const NAV_H = 58;
 
 const CATEGORIES: { key: AcademicCategory; label: string; topicLabel: string; emptyLabel: string }[] = [
@@ -2677,8 +2693,8 @@ export function App() {
     showToast('Course deleted');
   };
 
-  const handleJoinClass = (code: string) => {
-    const res = store.joinGroupByCode(code);
+  const handleJoinClass = async (code: string) => {
+    const res = await store.joinGroupByCode(code);
     if (res.error) {
       showToast(res.error);
     } else if (res.status === 'joined') {
@@ -2690,8 +2706,8 @@ export function App() {
     }
   };
 
-  const handleCreateClass = (name: string, mode: ApprovalMode) => {
-    const res = store.createGroup(name, mode);
+  const handleCreateClass = async (name: string, mode: ApprovalMode) => {
+    const res = await store.createGroup(name, mode);
     if (res.error) {
       showToast(res.error);
     } else {

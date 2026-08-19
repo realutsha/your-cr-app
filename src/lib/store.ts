@@ -213,7 +213,8 @@ class AppStore {
       created_at: new Date().toISOString(),
     };
 
-    if (!db) {
+    const dbInstance = db;
+    if (!dbInstance) {
       this.currentUser = defaultUser;
       this.persist();
       this.notify();
@@ -221,8 +222,11 @@ class AppStore {
     }
 
     try {
-      const userRef = doc(db, 'users', uid);
+      const userRef = doc(dbInstance, 'users', uid);
       const userSnap = await getDoc(userRef);
+
+      let currentGroupId: string | null = null;
+      let userRole: 'student' | 'cr' = 'student';
 
       if (!userSnap.exists()) {
         await setDoc(userRef, {
@@ -233,16 +237,52 @@ class AppStore {
         this.currentUser = defaultUser;
       } else {
         const data = userSnap.data() as Partial<User>;
-        this.currentUser = {
-          id: uid,
-          email: data.email || email,
-          username: data.username || username,
-          role: data.role || 'student',
-          current_group_id: data.current_group_id || null,
-          created_at: typeof data.created_at === 'string' ? data.created_at : new Date().toISOString(),
-        };
-        await updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
+        currentGroupId = data.current_group_id || null;
+        userRole = data.role || 'student';
       }
+
+      // If current_group_id is null on user doc, check if user is host of an active group or an approved member
+      if (!currentGroupId) {
+        // 1. Check if user is host of an active group
+        const hostGroupsSnap = await getDocs(
+          query(collection(dbInstance, 'groups'), where('host_id', '==', uid), where('status', '==', 'active'))
+        ).catch(() => null);
+
+        if (hostGroupsSnap && !hostGroupsSnap.empty) {
+          const groupDoc = hostGroupsSnap.docs[0];
+          currentGroupId = groupDoc.id;
+          userRole = 'cr';
+          const groupData = { id: groupDoc.id, ...groupDoc.data() } as Group;
+          const gIdx = this.groups.findIndex((g) => g.id === groupDoc.id);
+          if (gIdx >= 0) this.groups[gIdx] = groupData;
+          else this.groups.push(groupData);
+          await updateDoc(userRef, { current_group_id: currentGroupId, role: 'cr' }).catch(() => {});
+        } else {
+          // 2. Check if user is an approved member of a group
+          const memberSnap = await getDocs(
+            query(collection(dbInstance, 'groupMembers'), where('user_id', '==', uid), where('status', '==', 'approved'))
+          ).catch(() => null);
+
+          if (memberSnap && !memberSnap.empty) {
+            const mData = memberSnap.docs[0].data() as GroupMember;
+            currentGroupId = mData.group_id;
+            await updateDoc(userRef, { current_group_id: currentGroupId }).catch(() => {});
+          }
+        }
+      }
+
+      this.currentUser = {
+        id: uid,
+        email,
+        username,
+        role: userRole,
+        current_group_id: currentGroupId,
+        created_at:
+          userSnap.exists() && typeof userSnap.data()?.created_at === 'string'
+            ? (userSnap.data()?.created_at as string)
+            : new Date().toISOString(),
+      };
+      await updateDoc(userRef, { last_active_at: serverTimestamp() }).catch(() => {});
     } catch (e) {
       console.warn('Could not sync Firestore user profile:', e);
       this.currentUser = defaultUser;
@@ -534,10 +574,10 @@ class AppStore {
     };
   }
 
-  public createGroup(
+  public async createGroup(
     name: string,
     approvalMode: ApprovalMode = 'auto'
-  ): { group?: Group; error?: string } {
+  ): Promise<{ group?: Group; error?: string }> {
     if (!this.currentUser) return { error: 'Not authenticated' };
 
     // Enforce One Group Per User
@@ -575,23 +615,37 @@ class AppStore {
       email: this.currentUser.email,
     };
 
-    // Update state & role
+    // Update local state & role
     this.currentUser.role = 'cr';
     this.currentUser.current_group_id = groupId;
     this.groups.push(newGroup);
     this.members.push(hostMember);
 
-    // Sync with Firestore if connected
-    if (db) {
-      const userRef = doc(db, 'users', this.currentUser.id);
-      const groupRef = doc(db, 'groups', groupId);
-      const memberRef = doc(db, 'groupMembers', `${groupId}_${this.currentUser.id}`);
+    // Sync with Firestore
+    const dbInstance = db;
+    if (dbInstance) {
+      const userRef = doc(dbInstance, 'users', this.currentUser.id);
+      const groupRef = doc(dbInstance, 'groups', groupId);
+      const memberRef = doc(dbInstance, 'groupMembers', `${groupId}_${this.currentUser.id}`);
 
-      runTransaction(db, async (tx) => {
-        tx.update(userRef, { current_group_id: groupId, role: 'cr' });
-        tx.set(groupRef, newGroup);
-        tx.set(memberRef, { ...hostMember, expires_at: expiresAt });
-      }).catch((e) => console.warn('Firestore transaction failed:', e));
+      try {
+        await runTransaction(dbInstance, async (tx) => {
+          tx.update(userRef, { current_group_id: groupId, role: 'cr' });
+          tx.set(groupRef, newGroup);
+          tx.set(memberRef, { ...hostMember, expires_at: expiresAt });
+        });
+      } catch (e) {
+        console.warn('Firestore group creation transaction failed, falling back to batch:', e);
+        try {
+          const batch = writeBatch(dbInstance);
+          batch.update(userRef, { current_group_id: groupId, role: 'cr' });
+          batch.set(groupRef, newGroup);
+          batch.set(memberRef, { ...hostMember, expires_at: expiresAt });
+          await batch.commit();
+        } catch (batchErr) {
+          console.error('Failed to create group in Firestore:', batchErr);
+        }
+      }
     }
 
     this.persist();
@@ -600,11 +654,11 @@ class AppStore {
     return { group: newGroup };
   }
 
-  public joinGroupByCode(code: string): {
+  public async joinGroupByCode(code: string): Promise<{
     group?: Group;
     status?: 'joined' | 'pending';
     error?: string;
-  } {
+  }> {
     if (!this.currentUser) return { error: 'Not authenticated' };
 
     // Enforce One Group Per User
@@ -616,9 +670,31 @@ class AppStore {
     }
 
     const cleanCode = code.trim().toUpperCase();
-    const group = this.groups.find(
+    let group = this.groups.find(
       (g) => g.code.toUpperCase() === cleanCode && g.status === 'active'
     );
+
+    // Query Firestore if not already loaded in local memory
+    const dbInstance = db;
+    if (!group && dbInstance) {
+      try {
+        const q = query(
+          collection(dbInstance, 'groups'),
+          where('code', '==', cleanCode),
+          where('status', '==', 'active')
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docSnap = snap.docs[0];
+          group = { id: docSnap.id, ...docSnap.data() } as Group;
+          const idx = this.groups.findIndex((g) => g.id === group!.id);
+          if (idx >= 0) this.groups[idx] = group;
+          else this.groups.push(group);
+        }
+      } catch (err) {
+        console.warn('Failed to query group from Firestore by code:', err);
+      }
+    }
 
     if (!group) {
       return { error: 'Invalid or expired 6-character class code.' };
@@ -641,11 +717,13 @@ class AppStore {
       this.currentUser.current_group_id = group.id;
       this.members.push(newMember);
 
-      if (db) {
-        const userRef = doc(db, 'users', this.currentUser.id);
-        const memberRef = doc(db, 'groupMembers', `${group.id}_${this.currentUser.id}`);
-        setDoc(memberRef, { ...newMember, expires_at: group.expires_at }).catch(() => {});
-        updateDoc(userRef, { current_group_id: group.id }).catch(() => {});
+      if (dbInstance) {
+        const userRef = doc(dbInstance, 'users', this.currentUser.id);
+        const memberRef = doc(dbInstance, 'groupMembers', `${group.id}_${this.currentUser.id}`);
+        await Promise.all([
+          setDoc(memberRef, { ...newMember, expires_at: group.expires_at }),
+          updateDoc(userRef, { current_group_id: group.id }),
+        ]).catch((e) => console.warn('Failed to save group membership:', e));
       }
 
       this.persist();
@@ -667,9 +745,11 @@ class AppStore {
 
       this.requests.push(newReq);
 
-      if (db) {
-        const reqRef = doc(db, 'joinRequests', requestId);
-        setDoc(reqRef, { ...newReq, expires_at: group.expires_at }).catch(() => {});
+      if (dbInstance) {
+        const reqRef = doc(dbInstance, 'joinRequests', requestId);
+        await setDoc(reqRef, { ...newReq, expires_at: group.expires_at }).catch((e) =>
+          console.warn('Failed to save join request:', e)
+        );
       }
 
       this.persist();
