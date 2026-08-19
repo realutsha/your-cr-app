@@ -554,6 +554,33 @@ class AppStore {
   // GROUP MANAGEMENT (One Group Per User)
   // ==========================================
 
+  public getUserHostedGroups(): Group[] {
+    if (!this.currentUser) return [];
+    return this.groups.filter((g) => g.host_id === this.currentUser!.id && g.status === 'active');
+  }
+
+  public async switchActiveGroup(groupId: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.currentUser) return { success: false, error: 'Not authenticated' };
+    const targetGroup = this.groups.find((g) => g.id === groupId && g.status === 'active');
+    if (!targetGroup) return { success: false, error: 'Class not found' };
+
+    this.currentUser.current_group_id = targetGroup.id;
+    this.currentUser.role = targetGroup.host_id === this.currentUser.id ? 'cr' : 'student';
+
+    const dbInstance = db;
+    if (dbInstance) {
+      updateDoc(doc(dbInstance, 'users', this.currentUser.id), {
+        current_group_id: targetGroup.id,
+        role: this.currentUser.role,
+      }).catch(() => {});
+    }
+
+    this.persist();
+    this.notify();
+    this.attachFirestoreListeners();
+    return { success: true };
+  }
+
   public getCurrentUserGroup(): Group | null {
     if (!this.currentUser) return null;
 
@@ -579,14 +606,6 @@ class AppStore {
     approvalMode: ApprovalMode = 'auto'
   ): Promise<{ group?: Group; error?: string }> {
     if (!this.currentUser) return { error: 'Not authenticated' };
-
-    // Enforce One Group Per User
-    const existingGroup = this.getCurrentUserGroup();
-    if (existingGroup) {
-      return {
-        error: `You already belong to "${existingGroup.name}". You must leave your current class first.`,
-      };
-    }
 
     const code = generateGroupCode(6);
     const createdAt = new Date().toISOString();
