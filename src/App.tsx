@@ -187,7 +187,7 @@ export function App() {
     }
   };
 
-  const handleSaveUpdate = (data: {
+  const handleSaveUpdate = async (data: {
     id?: string;
     course_id: string;
     category: AcademicCategory;
@@ -200,18 +200,30 @@ export function App() {
     status?: UpdateStatus;
   }) => {
     if (data.id) {
-      store.updateAcademicUpdate(data.id, data);
+      const res = await store.updateAcademicUpdate(data.id, data);
+      if (res.error) {
+        showToast(res.error);
+        return;
+      }
       showToast('Announcement updated');
     } else {
-      store.createAcademicUpdate(data);
+      const res = await store.createAcademicUpdate(data);
+      if (res.error) {
+        showToast(res.error);
+        return;
+      }
       showToast('Announcement posted');
     }
     setComposeOpen(false);
     setEditingUpdate(null);
   };
 
-  const handleDeleteUpdate = (id: string) => {
-    store.deleteAcademicUpdate(id);
+  const handleDeleteUpdate = async (id: string) => {
+    const res = await store.deleteAcademicUpdate(id);
+    if (res.error) {
+      showToast(res.error);
+      return;
+    }
     setSelectedUpdate(null);
     showToast('Announcement deleted');
   };

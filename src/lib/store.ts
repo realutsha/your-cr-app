@@ -60,6 +60,16 @@ const STORAGE_KEYS = {
   FCM_TOKENS: 'diu_cr_fcm_tokens',
 };
 
+function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      clean[key] = val;
+    }
+  }
+  return clean;
+}
+
 /* ------------------------------------------------------------------
    FIREBASE CLOUD FIRESTORE APP STORE
 -------------------------------------------------------------------*/
@@ -1365,7 +1375,7 @@ class AppStore {
       });
   }
 
-  public createAcademicUpdate(data: {
+  public async createAcademicUpdate(data: {
     course_id: string;
     category: AcademicCategory;
     title: string;
@@ -1375,7 +1385,7 @@ class AppStore {
     description?: string;
     resource_url?: string;
     status?: UpdateStatus;
-  }): { update?: AcademicUpdate; error?: string } {
+  }): Promise<{ update?: AcademicUpdate; error?: string }> {
     if (!this.currentUser) return { error: 'Not authenticated' };
     const currentGroup = this.getCurrentUserGroup();
     if (!currentGroup) return { error: 'No active class found.' };
@@ -1383,8 +1393,13 @@ class AppStore {
     const course = this.courses.find((c) => c.id === data.course_id);
     const courseName = course ? course.name : 'Academic Update';
 
+    const updateId = `upd-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const topicVal = data.topic?.trim() || undefined;
+    const descVal = data.description?.trim() || undefined;
+    const resUrlVal = data.resource_url?.trim() || undefined;
+
     const newUpdate: AcademicUpdate = {
-      id: `upd-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+      id: updateId,
       group_id: currentGroup.id,
       course_id: data.course_id,
       host_id: this.currentUser.id,
@@ -1394,54 +1409,140 @@ class AppStore {
       title: data.title.trim(),
       date: data.date.trim(),
       time: data.time.trim() || 'TBA',
-      topic: data.topic?.trim() || undefined,
-      description: data.description?.trim() || undefined,
-      resource_url: data.resource_url?.trim() || undefined,
+      topic: topicVal,
+      description: descVal,
+      resource_url: resUrlVal,
       status: data.status || 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       unread: true,
     };
 
-    this.updates.unshift(newUpdate);
-
     if (db) {
       const updateRef = doc(db, 'updates', newUpdate.id);
-      setDoc(updateRef, {
-        ...newUpdate,
-        expires_at: currentGroup.expires_at,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      }).catch(() => {});
-
-      // Dispatch push notification to approved class members in background
-      dispatchUpdateNotification({
-        updateId: newUpdate.id,
-        groupId: currentGroup.id,
-        courseName: courseName,
+      const firestorePayload = sanitizeForFirestore({
+        id: newUpdate.id,
+        group_id: newUpdate.group_id,
+        course_id: newUpdate.course_id,
+        host_id: newUpdate.host_id,
         category: newUpdate.category,
+        section: newUpdate.section,
+        course_name: newUpdate.course_name,
         title: newUpdate.title,
         date: newUpdate.date,
         time: newUpdate.time,
-      }).catch(() => {});
+        topic: topicVal || '',
+        description: descVal || '',
+        resource_url: resUrlVal || '',
+        status: newUpdate.status,
+        expires_at: currentGroup.expires_at,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      });
+
+      try {
+        await setDoc(updateRef, firestorePayload);
+
+        // Dispatch push notification to approved class members in background
+        dispatchUpdateNotification({
+          updateId: newUpdate.id,
+          groupId: currentGroup.id,
+          courseName: courseName,
+          category: newUpdate.category,
+          title: newUpdate.title,
+          date: newUpdate.date,
+          time: newUpdate.time,
+        }).catch((err) => console.warn('[FCM Notification] Dispatch error:', err));
+      } catch (err: unknown) {
+        console.error('[Firestore Error] Failed to create update in updates collection:', err);
+        const fireErr = err as { code?: string; message?: string };
+        let errorMessage = 'Failed to post academic update to Firestore.';
+
+        if (fireErr.code === 'permission-denied' || fireErr.message?.includes('PERMISSION_DENIED')) {
+          errorMessage = 'Permission denied: Only the CR host of this group can post updates.';
+        } else if (fireErr.code === 'unauthenticated' || fireErr.message?.includes('unauthenticated')) {
+          errorMessage = 'Unauthenticated: Please log in again with your DIU account.';
+        } else if (fireErr.code === 'invalid-argument' || fireErr.message?.includes('invalid-argument')) {
+          errorMessage = `Invalid update payload argument: ${fireErr.message}`;
+        } else if (fireErr.code === 'unavailable' || fireErr.message?.includes('unavailable')) {
+          errorMessage = 'Server unavailable. Please check your internet connection.';
+        } else if (fireErr.message) {
+          errorMessage = fireErr.message;
+        }
+
+        return { error: errorMessage };
+      }
     }
 
+    this.updates.unshift(newUpdate);
     this.persist();
     this.notify();
     return { update: newUpdate };
   }
 
-  public updateAcademicUpdate(
+  public async updateAcademicUpdate(
     id: string,
     data: Partial<AcademicUpdate>
-  ): { update?: AcademicUpdate; error?: string } {
+  ): Promise<{ update?: AcademicUpdate; error?: string }> {
     const update = this.updates.find((u) => u.id === id);
     if (!update) return { error: 'Update not found.' };
 
+    const currentGroup = this.getCurrentUserGroup();
+    if (!currentGroup) return { error: 'No active class found.' };
+
+    const topicVal = data.topic !== undefined ? data.topic.trim() : update.topic;
+    const descVal = data.description !== undefined ? data.description.trim() : update.description;
+    const resUrlVal = data.resource_url !== undefined ? data.resource_url.trim() : update.resource_url;
+
+    let newCourseName = update.course_name;
+    if (data.course_id && data.course_id !== update.course_id) {
+      const course = this.courses.find((c) => c.id === data.course_id);
+      if (course) newCourseName = course.name;
+    }
+
+    if (db) {
+      const payload: Record<string, any> = {
+        updated_at: serverTimestamp(),
+      };
+
+      if (data.course_id) {
+        payload.course_id = data.course_id;
+        payload.course_name = newCourseName;
+      }
+      if (data.category) {
+        payload.category = data.category;
+        payload.section = data.category;
+      }
+      if (data.title) payload.title = data.title.trim();
+      if (data.date) payload.date = data.date.trim();
+      if (data.time) payload.time = data.time.trim();
+      if (data.topic !== undefined) payload.topic = topicVal || '';
+      if (data.description !== undefined) payload.description = descVal || '';
+      if (data.resource_url !== undefined) payload.resource_url = resUrlVal || '';
+      if (data.status) payload.status = data.status;
+
+      const cleanPayload = sanitizeForFirestore(payload);
+
+      try {
+        await updateDoc(doc(db, 'updates', id), cleanPayload);
+      } catch (err: unknown) {
+        console.error('[Firestore Error] Failed to update academic update:', err);
+        const fireErr = err as { code?: string; message?: string };
+        let errorMessage = 'Failed to update announcement in Firestore.';
+
+        if (fireErr.code === 'permission-denied' || fireErr.message?.includes('PERMISSION_DENIED')) {
+          errorMessage = 'Permission denied: Only the CR host of this group can edit updates.';
+        } else if (fireErr.message) {
+          errorMessage = fireErr.message;
+        }
+
+        return { error: errorMessage };
+      }
+    }
+
     if (data.course_id && data.course_id !== update.course_id) {
       update.course_id = data.course_id;
-      const course = this.courses.find((c) => c.id === data.course_id);
-      if (course) update.course_name = course.name;
+      update.course_name = newCourseName;
     }
     if (data.category) {
       update.category = data.category;
@@ -1450,32 +1551,34 @@ class AppStore {
     if (data.title) update.title = data.title.trim();
     if (data.date) update.date = data.date.trim();
     if (data.time) update.time = data.time.trim();
-    if (data.topic !== undefined) update.topic = data.topic.trim();
-    if (data.description !== undefined) update.description = data.description.trim();
-    if (data.resource_url !== undefined) update.resource_url = data.resource_url.trim() || undefined;
+    if (data.topic !== undefined) update.topic = topicVal || undefined;
+    if (data.description !== undefined) update.description = descVal || undefined;
+    if (data.resource_url !== undefined) update.resource_url = resUrlVal || undefined;
     if (data.status) update.status = data.status;
 
     update.updated_at = new Date().toISOString();
-
-    if (db) {
-      updateDoc(doc(db, 'updates', id), {
-        ...data,
-        updated_at: serverTimestamp(),
-      }).catch(() => {});
-    }
 
     this.persist();
     this.notify();
     return { update };
   }
 
-  public deleteAcademicUpdate(id: string): { success: boolean; error?: string } {
+  public async deleteAcademicUpdate(id: string): Promise<{ success: boolean; error?: string }> {
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'updates', id));
+      } catch (err: unknown) {
+        console.error('[Firestore Error] Failed to delete academic update:', err);
+        const fireErr = err as { code?: string; message?: string };
+        return {
+          success: false,
+          error: fireErr.message || 'Failed to delete update from Firestore.',
+        };
+      }
+    }
+
     this.updates = this.updates.filter((u) => u.id !== id);
     this.views = this.views.filter((v) => v.update_id !== id);
-
-    if (db) {
-      deleteDoc(doc(db, 'updates', id)).catch(() => {});
-    }
 
     this.persist();
     this.notify();
