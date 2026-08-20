@@ -4,6 +4,7 @@ import type { ApprovalMode, Group, User } from '../../types';
 import { formatFriendlyDate } from '../../lib/auth';
 import { store } from '../../lib/store';
 import type { ThemePreference } from '../../lib/theme';
+import { LogoutButton } from './LogoutButton';
 
 interface InfoRowProps {
   label: string;
@@ -453,28 +454,16 @@ export function ProfileScreen({
               width: '100%',
               textAlign: 'left',
               cursor: 'pointer',
+              marginBottom: 10,
             }}
           >
             <Trash2 size={15} color="var(--c-danger)" />
             <span>Delete Group</span>
           </button>
         )}
-        <button
-          onClick={onLogout}
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'var(--c-danger)',
-            padding: '8px 0',
-            display: 'block',
-            width: '100%',
-            textAlign: 'left',
-            cursor: 'pointer',
-          }}
-        >
-          Log out
-        </button>
+        <div style={{ marginTop: group ? 12 : 4 }}>
+          <LogoutButton onClick={onLogout} />
+        </div>
       </div>
     </div>
   );
