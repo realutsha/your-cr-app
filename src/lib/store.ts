@@ -31,6 +31,11 @@ import {
   calculateExpirationDate,
   isGroupExpired,
 } from './auth';
+import {
+  LIMITS,
+  validateText,
+  validateUrl,
+} from './validation';
 import { dispatchUpdateNotification } from './notifications';
 import type {
   User,
@@ -95,11 +100,24 @@ class AppStore {
   private views: UpdateView[] = [];
   private listeners: Set<() => void> = new Set();
   private firestoreUnsubscribers: (() => void)[] = [];
+  private activeSyncPromise: Promise<User> | null = null;
+  private activeSyncUid: string | null = null;
 
   constructor() {
     this.loadFromStorage();
     this.checkGroupExpirations();
     this.initFirebaseAuthListener();
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.currentUser) {
+          // Reconnect listeners if they were cleared
+          if (this.firestoreUnsubscribers.length === 0) {
+            this.attachFirestoreListeners();
+          }
+        }
+      });
+    }
   }
 
   private loadFromStorage() {
@@ -245,6 +263,18 @@ class AppStore {
   }
 
   private async syncFirebaseUserProfile(uid: string, email: string, username: string): Promise<User> {
+    if (this.activeSyncPromise && this.activeSyncUid === uid) {
+      return this.activeSyncPromise;
+    }
+    this.activeSyncUid = uid;
+    this.activeSyncPromise = this.performSyncUserProfile(uid, email, username).finally(() => {
+      this.activeSyncPromise = null;
+      this.activeSyncUid = null;
+    });
+    return this.activeSyncPromise;
+  }
+
+  private async performSyncUserProfile(uid: string, email: string, username: string): Promise<User> {
     const defaultUser: User = {
       id: uid,
       email,
@@ -758,11 +788,17 @@ class AppStore {
       return { error: 'Not authenticated. Please sign in with your DIU account.' };
     }
 
-    const trimmedName = name.trim();
-    if (trimmedName.length < 3) {
-      return { error: 'Class name must be at least 3 characters long.' };
+    const nameValidation = validateText(name, {
+      fieldName: 'Class name',
+      maxLength: LIMITS.CLASS_NAME,
+      minLength: 3,
+      required: true,
+    });
+    if (!nameValidation.isValid) {
+      return { error: nameValidation.error };
     }
 
+    const trimmedName = nameValidation.sanitized;
     const code = generateGroupCode(6);
     const createdAt = new Date().toISOString();
     const expiresAt = calculateExpirationDate(new Date());
@@ -876,7 +912,17 @@ class AppStore {
       };
     }
 
-    const cleanCode = code.trim().toUpperCase();
+    const codeValidation = validateText(code, {
+      fieldName: 'Class code',
+      maxLength: LIMITS.GROUP_CODE,
+      minLength: 4,
+      required: true,
+    });
+    if (!codeValidation.isValid) {
+      return { error: codeValidation.error };
+    }
+
+    const cleanCode = codeValidation.sanitized.toUpperCase();
     let group = this.groups.find(
       (g) => g.code.toUpperCase() === cleanCode && g.status === 'active'
     );
@@ -1210,9 +1256,16 @@ class AppStore {
     const currentGroup = this.getCurrentUserGroup();
     if (!currentGroup) return { error: 'No active class found.' };
 
-    const trimmed = name.trim();
-    if (!trimmed) return { error: 'Course name is required.' };
+    const nameValidation = validateText(name, {
+      fieldName: 'Course name',
+      maxLength: LIMITS.COURSE_NAME,
+      required: true,
+    });
+    if (!nameValidation.isValid) {
+      return { error: nameValidation.error };
+    }
 
+    const trimmed = nameValidation.sanitized;
     const exists = this.courses.some(
       (c) => c.group_id === currentGroup.id && c.name.toLowerCase() === trimmed.toLowerCase()
     );
@@ -1243,9 +1296,16 @@ class AppStore {
     const course = this.courses.find((c) => c.id === courseId);
     if (!course) return { error: 'Course not found.' };
 
-    const trimmed = name.trim();
-    if (!trimmed) return { error: 'Course name cannot be empty.' };
+    const nameValidation = validateText(name, {
+      fieldName: 'Course name',
+      maxLength: LIMITS.COURSE_NAME,
+      required: true,
+    });
+    if (!nameValidation.isValid) {
+      return { error: nameValidation.error };
+    }
 
+    const trimmed = nameValidation.sanitized;
     course.name = trimmed;
     course.updated_at = new Date().toISOString();
 
@@ -1530,13 +1590,54 @@ class AppStore {
     const currentGroup = this.getCurrentUserGroup();
     if (!currentGroup) return { error: 'No active class found.' };
 
+    const titleValidation = validateText(data.title, {
+      fieldName: 'Title',
+      maxLength: LIMITS.ANNOUNCEMENT_TITLE,
+      required: true,
+    });
+    if (!titleValidation.isValid) return { error: titleValidation.error };
+
+    const dateValidation = validateText(data.date, {
+      fieldName: 'Date',
+      maxLength: LIMITS.DATE,
+      required: true,
+    });
+    if (!dateValidation.isValid) return { error: dateValidation.error };
+
+    const timeValidation = validateText(data.time, {
+      fieldName: 'Time',
+      maxLength: LIMITS.TIME,
+      required: false,
+    });
+    if (!timeValidation.isValid) return { error: timeValidation.error };
+
+    const topicValidation = validateText(data.topic, {
+      fieldName: 'Topic / Syllabus',
+      maxLength: LIMITS.ANNOUNCEMENT_TOPIC,
+      required: false,
+    });
+    if (!topicValidation.isValid) return { error: topicValidation.error };
+
+    const descValidation = validateText(data.description, {
+      fieldName: 'Description',
+      maxLength: LIMITS.ANNOUNCEMENT_DESCRIPTION,
+      required: false,
+    });
+    if (!descValidation.isValid) return { error: descValidation.error };
+
+    const urlValidation = validateUrl(data.resource_url, 'Resource Link');
+    if (!urlValidation.isValid) return { error: urlValidation.error };
+
     const course = this.courses.find((c) => c.id === data.course_id);
     const courseName = course ? course.name : 'Academic Update';
 
     const updateId = `upd-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-    const topicVal = data.topic?.trim() || undefined;
-    const descVal = data.description?.trim() || undefined;
-    const resUrlVal = data.resource_url?.trim() || undefined;
+    const cleanTitle = titleValidation.sanitized;
+    const cleanDate = dateValidation.sanitized;
+    const cleanTime = timeValidation.sanitized || 'TBA';
+    const cleanTopic = topicValidation.sanitized || undefined;
+    const cleanDesc = descValidation.sanitized || undefined;
+    const cleanUrl = urlValidation.sanitized || undefined;
 
     const newUpdate: AcademicUpdate = {
       id: updateId,
@@ -1546,12 +1647,12 @@ class AppStore {
       category: data.category,
       section: data.category,
       course_name: courseName,
-      title: data.title.trim(),
-      date: data.date.trim(),
-      time: data.time.trim() || 'TBA',
-      topic: topicVal,
-      description: descVal,
-      resource_url: resUrlVal,
+      title: cleanTitle,
+      date: cleanDate,
+      time: cleanTime,
+      topic: cleanTopic,
+      description: cleanDesc,
+      resource_url: cleanUrl,
       status: data.status || 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -1571,9 +1672,9 @@ class AppStore {
         title: newUpdate.title,
         date: newUpdate.date,
         time: newUpdate.time,
-        topic: topicVal || '',
-        description: descVal || '',
-        resource_url: resUrlVal || '',
+        topic: cleanTopic || '',
+        description: cleanDesc || '',
+        resource_url: cleanUrl || '',
         status: newUpdate.status,
         expires_at: currentGroup.expires_at,
         created_at: serverTimestamp(),
@@ -1630,9 +1731,67 @@ class AppStore {
     const currentGroup = this.getCurrentUserGroup();
     if (!currentGroup) return { error: 'No active class found.' };
 
-    const topicVal = data.topic !== undefined ? data.topic.trim() : update.topic;
-    const descVal = data.description !== undefined ? data.description.trim() : update.description;
-    const resUrlVal = data.resource_url !== undefined ? data.resource_url.trim() : update.resource_url;
+    let cleanTitle = update.title;
+    if (data.title !== undefined) {
+      const titleVal = validateText(data.title, {
+        fieldName: 'Title',
+        maxLength: LIMITS.ANNOUNCEMENT_TITLE,
+        required: true,
+      });
+      if (!titleVal.isValid) return { error: titleVal.error };
+      cleanTitle = titleVal.sanitized;
+    }
+
+    let cleanDate = update.date;
+    if (data.date !== undefined) {
+      const dateVal = validateText(data.date, {
+        fieldName: 'Date',
+        maxLength: LIMITS.DATE,
+        required: true,
+      });
+      if (!dateVal.isValid) return { error: dateVal.error };
+      cleanDate = dateVal.sanitized;
+    }
+
+    let cleanTime = update.time;
+    if (data.time !== undefined) {
+      const timeVal = validateText(data.time, {
+        fieldName: 'Time',
+        maxLength: LIMITS.TIME,
+        required: false,
+      });
+      if (!timeVal.isValid) return { error: timeVal.error };
+      cleanTime = timeVal.sanitized || 'TBA';
+    }
+
+    let cleanTopic = update.topic;
+    if (data.topic !== undefined) {
+      const topicVal = validateText(data.topic, {
+        fieldName: 'Topic / Syllabus',
+        maxLength: LIMITS.ANNOUNCEMENT_TOPIC,
+        required: false,
+      });
+      if (!topicVal.isValid) return { error: topicVal.error };
+      cleanTopic = topicVal.sanitized || undefined;
+    }
+
+    let cleanDesc = update.description;
+    if (data.description !== undefined) {
+      const descVal = validateText(data.description, {
+        fieldName: 'Description',
+        maxLength: LIMITS.ANNOUNCEMENT_DESCRIPTION,
+        required: false,
+      });
+      if (!descVal.isValid) return { error: descVal.error };
+      cleanDesc = descVal.sanitized || undefined;
+    }
+
+    let cleanUrl = update.resource_url;
+    if (data.resource_url !== undefined) {
+      const urlVal = validateUrl(data.resource_url, 'Resource Link');
+      if (!urlVal.isValid) return { error: urlVal.error };
+      cleanUrl = urlVal.sanitized || undefined;
+    }
 
     let newCourseName = update.course_name;
     if (data.course_id && data.course_id !== update.course_id) {
@@ -1653,12 +1812,12 @@ class AppStore {
         payload.category = data.category;
         payload.section = data.category;
       }
-      if (data.title) payload.title = data.title.trim();
-      if (data.date) payload.date = data.date.trim();
-      if (data.time) payload.time = data.time.trim();
-      if (data.topic !== undefined) payload.topic = topicVal || '';
-      if (data.description !== undefined) payload.description = descVal || '';
-      if (data.resource_url !== undefined) payload.resource_url = resUrlVal || '';
+      if (data.title !== undefined) payload.title = cleanTitle;
+      if (data.date !== undefined) payload.date = cleanDate;
+      if (data.time !== undefined) payload.time = cleanTime;
+      if (data.topic !== undefined) payload.topic = cleanTopic || '';
+      if (data.description !== undefined) payload.description = cleanDesc || '';
+      if (data.resource_url !== undefined) payload.resource_url = cleanUrl || '';
       if (data.status) payload.status = data.status;
 
       const cleanPayload = sanitizeForFirestore(payload);
@@ -1688,12 +1847,12 @@ class AppStore {
       update.category = data.category;
       update.section = data.category;
     }
-    if (data.title) update.title = data.title.trim();
-    if (data.date) update.date = data.date.trim();
-    if (data.time) update.time = data.time.trim();
-    if (data.topic !== undefined) update.topic = topicVal || undefined;
-    if (data.description !== undefined) update.description = descVal || undefined;
-    if (data.resource_url !== undefined) update.resource_url = resUrlVal || undefined;
+    if (data.title !== undefined) update.title = cleanTitle;
+    if (data.date !== undefined) update.date = cleanDate;
+    if (data.time !== undefined) update.time = cleanTime;
+    if (data.topic !== undefined) update.topic = cleanTopic;
+    if (data.description !== undefined) update.description = cleanDesc;
+    if (data.resource_url !== undefined) update.resource_url = cleanUrl;
     if (data.status) update.status = data.status;
 
     update.updated_at = new Date().toISOString();

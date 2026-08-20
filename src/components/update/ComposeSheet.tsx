@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { CATEGORIES, type AcademicCategory, type AcademicUpdate, type Course, type UpdateStatus } from '../../types';
 import { Field } from '../common/Field';
+import { LIMITS, validateText, validateUrl } from '../../lib/validation';
 
 const STATUS_OPTIONS: { key: UpdateStatus; label: string }[] = [
   { key: 'pending', label: 'Pending' },
@@ -9,16 +10,6 @@ const STATUS_OPTIONS: { key: UpdateStatus; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled' },
   { key: 'passed_deadline', label: 'Passed deadline' },
 ];
-
-function isValidUrl(url: string): boolean {
-  if (!url || !url.trim()) return true; // Optional field
-  try {
-    const parsed = new URL(url.trim());
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
 
 interface ComposeSheetProps {
   courses: Course[];
@@ -61,30 +52,66 @@ export function ComposeSheet({
   const [topic, setTopic] = useState(initialUpdate?.topic || '');
   const [description, setDescription] = useState(initialUpdate?.description || '');
   const [resourceUrl, setResourceUrl] = useState(initialUpdate?.resource_url || '');
-  const [urlError, setUrlError] = useState('');
   const [status, setStatus] = useState<UpdateStatus>(initialUpdate?.status || 'pending');
 
-  const canSave = Boolean(title.trim() && courseId && date.trim());
+  const titleValidation = validateText(title, {
+    fieldName: 'Title',
+    maxLength: LIMITS.ANNOUNCEMENT_TITLE,
+    required: true,
+  });
+
+  const topicValidation = validateText(topic, {
+    fieldName: 'Topic / Syllabus',
+    maxLength: LIMITS.ANNOUNCEMENT_TOPIC,
+    required: false,
+  });
+
+  const descValidation = validateText(description, {
+    fieldName: 'Description',
+    maxLength: LIMITS.ANNOUNCEMENT_DESCRIPTION,
+    required: false,
+  });
+
+  const dateValidation = validateText(date, {
+    fieldName: 'Date',
+    maxLength: LIMITS.DATE,
+    required: true,
+  });
+
+  const timeValidation = validateText(time, {
+    fieldName: 'Time',
+    maxLength: LIMITS.TIME,
+    required: false,
+  });
+
+  const urlValidation = validateUrl(resourceUrl, 'Resource Link');
+
+  const canSave = Boolean(
+    courseId &&
+    titleValidation.isValid &&
+    topicValidation.isValid &&
+    descValidation.isValid &&
+    dateValidation.isValid &&
+    timeValidation.isValid &&
+    urlValidation.isValid
+  );
+
   const activeTopicLabel =
     CATEGORIES.find((s) => s.key === category)?.topicLabel || 'Topic / Syllabus';
 
   const handleFormSubmit = () => {
-    const trimmedUrl = resourceUrl.trim();
-    if (trimmedUrl && !isValidUrl(trimmedUrl)) {
-      setUrlError('Please enter a valid URL starting with http:// or https://');
-      return;
-    }
+    if (!canSave) return;
 
     onSave({
       id: initialUpdate?.id,
       course_id: courseId,
       category,
-      title: title.trim(),
-      date: date.trim(),
-      time: time.trim() || 'TBA',
-      topic: topic.trim(),
-      description: description.trim(),
-      resource_url: trimmedUrl || undefined,
+      title: titleValidation.sanitized,
+      date: dateValidation.sanitized,
+      time: timeValidation.sanitized || 'TBA',
+      topic: topicValidation.sanitized,
+      description: descValidation.sanitized,
+      resource_url: urlValidation.sanitized || undefined,
       status,
     });
   };
@@ -203,6 +230,9 @@ export function ComposeSheet({
       <Field
         label="Title"
         value={title}
+        maxLength={LIMITS.ANNOUNCEMENT_TITLE}
+        showCount
+        error={title.length > LIMITS.ANNOUNCEMENT_TITLE ? titleValidation.error : undefined}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="e.g. Quiz 1, Lab Test 1, Assignment 2"
       />
@@ -212,6 +242,9 @@ export function ComposeSheet({
           <Field
             label="Date"
             value={date}
+            maxLength={LIMITS.DATE}
+            showCount={date.length > LIMITS.DATE * 0.7}
+            error={date.length > LIMITS.DATE ? dateValidation.error : undefined}
             onChange={(e) => setDate(e.target.value)}
             placeholder="e.g. 15 Aug"
           />
@@ -220,6 +253,9 @@ export function ComposeSheet({
           <Field
             label="Time"
             value={time}
+            maxLength={LIMITS.TIME}
+            showCount={time.length > LIMITS.TIME * 0.7}
+            error={time.length > LIMITS.TIME ? timeValidation.error : undefined}
             onChange={(e) => setTime(e.target.value)}
             placeholder="e.g. 7:00 AM / 11:59 PM"
           />
@@ -229,6 +265,9 @@ export function ComposeSheet({
       <Field
         label={activeTopicLabel}
         value={topic}
+        maxLength={LIMITS.ANNOUNCEMENT_TOPIC}
+        showCount
+        error={topic.length > LIMITS.ANNOUNCEMENT_TOPIC ? topicValidation.error : undefined}
         onChange={(e) => setTopic(e.target.value)}
         placeholder="e.g. Array, Polymorphism, ERD + SQL"
       />
@@ -238,6 +277,9 @@ export function ComposeSheet({
         label="Additional Instructions / Description"
         rows={3}
         value={description}
+        maxLength={LIMITS.ANNOUNCEMENT_DESCRIPTION}
+        showCount
+        error={description.length > LIMITS.ANNOUNCEMENT_DESCRIPTION ? descValidation.error : undefined}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Room number, materials to bring, or submission guidelines..."
       />
@@ -247,17 +289,12 @@ export function ComposeSheet({
         <Field
           label="Resource / Link (optional)"
           value={resourceUrl}
-          onChange={(e) => {
-            setResourceUrl(e.target.value);
-            if (urlError) setUrlError('');
-          }}
+          maxLength={LIMITS.URL}
+          showCount={resourceUrl.length > 50}
+          error={!urlValidation.isValid ? urlValidation.error : undefined}
+          onChange={(e) => setResourceUrl(e.target.value)}
           placeholder="e.g. https://drive.google.com/file/... or GitHub link"
         />
-        {urlError && (
-          <div style={{ color: 'var(--c-danger)', fontSize: 12, fontFamily: 'var(--font-body)', marginTop: -10, marginBottom: 14 }}>
-            {urlError}
-          </div>
-        )}
       </div>
 
       {/* Status Picker */}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { ApprovalMode } from '../../types';
 import { Field } from '../common/Field';
+import { LIMITS, validateText } from '../../lib/validation';
 
 interface CreateClassSheetProps {
   onClose: () => void;
@@ -14,23 +15,24 @@ export function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canCreate = name.trim().length >= 3;
+  const nameValidation = validateText(name, {
+    fieldName: 'Class Name',
+    maxLength: LIMITS.CLASS_NAME,
+    minLength: 3,
+    required: true,
+  });
+
+  const canCreate = nameValidation.isValid;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isCreating) return;
-
-    const cleanName = name.trim();
-    if (cleanName.length < 3) {
-      setError('Class name must be at least 3 characters long.');
-      return;
-    }
+    if (isCreating || !canCreate) return;
 
     setError(null);
     setIsCreating(true);
 
     try {
-      const res = await onCreate(cleanName, approvalMode);
+      const res = await onCreate(nameValidation.sanitized, approvalMode);
       if (!res.success) {
         setError(res.error || 'Failed to create class. Please try again.');
       }
@@ -103,6 +105,9 @@ export function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
       <Field
         label="Class Name"
         value={name}
+        maxLength={LIMITS.CLASS_NAME}
+        showCount
+        error={name.length > 0 && !nameValidation.isValid ? nameValidation.error : undefined}
         onChange={(e) => {
           setName(e.target.value);
           if (error) setError(null);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Trash2, X } from 'lucide-react';
 import type { Course } from '../../types';
 import { Field } from '../common/Field';
+import { LIMITS, validateText } from '../../lib/validation';
 
 interface CourseManageSheetProps {
   courses: Course[];
@@ -22,6 +23,12 @@ export function CourseManageSheet({
 }: CourseManageSheetProps) {
   const [courseName, setCourseName] = useState(editingCourse?.name || '');
   const isEditing = Boolean(editingCourse);
+
+  const courseValidation = validateText(courseName, {
+    fieldName: 'Course Name',
+    maxLength: LIMITS.COURSE_NAME,
+    required: true,
+  });
 
   return (
     <div style={{ padding: '0 20px 32px' }}>
@@ -44,11 +51,11 @@ export function CourseManageSheet({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!courseName.trim()) return;
+          if (!courseValidation.isValid) return;
           if (isEditing && editingCourse) {
-            onUpdateCourse(editingCourse.id, courseName.trim());
+            onUpdateCourse(editingCourse.id, courseValidation.sanitized);
           } else {
-            onCreateCourse(courseName.trim());
+            onCreateCourse(courseValidation.sanitized);
             setCourseName('');
           }
         }}
@@ -57,6 +64,9 @@ export function CourseManageSheet({
         <Field
           label={isEditing ? 'Course Name' : 'Add New Course'}
           value={courseName}
+          maxLength={LIMITS.COURSE_NAME}
+          showCount
+          error={courseName.length > LIMITS.COURSE_NAME ? courseValidation.error : undefined}
           onChange={(e) => setCourseName(e.target.value)}
           placeholder="e.g. Object Oriented Programming"
           autoFocus
@@ -65,17 +75,17 @@ export function CourseManageSheet({
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             type="submit"
-            disabled={!courseName.trim()}
+            disabled={!courseValidation.isValid}
             style={{
               flex: 1,
               fontFamily: 'var(--font-body)',
               fontSize: 14,
               fontWeight: 600,
               color: '#FFFFFF',
-              background: 'var(--c-accent)',
+              background: courseValidation.isValid ? 'var(--c-accent)' : 'var(--c-surface-strong)',
               padding: '10px 0',
               borderRadius: 10,
-              cursor: courseName.trim() ? 'pointer' : 'default',
+              cursor: courseValidation.isValid ? 'pointer' : 'default',
             }}
           >
             {isEditing ? 'Update course name' : 'Add course'}
