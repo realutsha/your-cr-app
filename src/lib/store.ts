@@ -348,133 +348,215 @@ class AppStore {
     this.clearFirestoreListeners();
     if (!db || !this.currentUser) return;
 
+    const currentUserId = this.currentUser.id;
     const currentGroupId = this.currentUser.current_group_id;
 
     // Listen to current user document
-    const userUnsub = onSnapshot(doc(db, 'users', this.currentUser.id), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as User;
-        if (this.currentUser) {
-          this.currentUser.role = data.role || this.currentUser.role;
-          this.currentUser.current_group_id = data.current_group_id ?? null;
-          this.persist();
-          this.notify();
+    try {
+      const userUnsub = onSnapshot(
+        doc(db, 'users', currentUserId),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as User;
+            if (this.currentUser && this.currentUser.id === currentUserId) {
+              const previousGroupId = this.currentUser.current_group_id;
+              this.currentUser.role = data.role || this.currentUser.role;
+              this.currentUser.current_group_id = data.current_group_id ?? null;
+              this.persist();
+              this.notify();
+
+              if (previousGroupId !== this.currentUser.current_group_id) {
+                this.attachFirestoreListeners();
+              }
+            }
+          }
+        },
+        (error) => {
+          console.warn('[Firestore] User listener error:', error);
         }
-      }
-    });
-    this.firestoreUnsubscribers.push(userUnsub);
+      );
+      this.firestoreUnsubscribers.push(userUnsub);
+    } catch (e) {
+      console.warn('[Firestore] Failed to attach user listener:', e);
+    }
 
     // If user belongs to a group, listen to group-scoped collections
     if (currentGroupId) {
       // 1. Group Document
-      const groupUnsub = onSnapshot(doc(db, 'groups', currentGroupId), (docSnap) => {
-        if (docSnap.exists()) {
-          const g = { id: docSnap.id, ...docSnap.data() } as Group;
-          const idx = this.groups.findIndex((item) => item.id === g.id);
-          if (idx >= 0) this.groups[idx] = g;
-          else this.groups.push(g);
-          this.persist();
-          this.notify();
-        } else {
-          // Group was deleted on the server by the CR
-          this.groups = this.groups.filter((item) => item.id !== currentGroupId);
-          if (this.currentUser && this.currentUser.current_group_id === currentGroupId) {
-            this.currentUser.current_group_id = null;
-            this.currentUser.role = 'student';
-            if (db) {
-              updateDoc(doc(db, 'users', this.currentUser.id), { current_group_id: null, role: 'student' }).catch(() => {});
+      try {
+        const groupUnsub = onSnapshot(
+          doc(db, 'groups', currentGroupId),
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const g = { id: docSnap.id, ...docSnap.data() } as Group;
+              const idx = this.groups.findIndex((item) => item.id === g.id);
+              if (idx >= 0) this.groups[idx] = g;
+              else this.groups.push(g);
+              this.persist();
+              this.notify();
+            } else {
+              // Group was deleted on the server by the CR
+              this.groups = this.groups.filter((item) => item.id !== currentGroupId);
+              if (this.currentUser && this.currentUser.current_group_id === currentGroupId) {
+                this.currentUser.current_group_id = null;
+                this.currentUser.role = 'student';
+                if (db) {
+                  updateDoc(doc(db, 'users', this.currentUser.id), { current_group_id: null, role: 'student' }).catch(() => {});
+                }
+              }
+              this.courses = [];
+              this.updates = [];
+              this.views = [];
+              this.members = [];
+              this.requests = [];
+              this.persist();
+              this.clearFirestoreListeners();
+              this.notify();
             }
+          },
+          (error) => {
+            console.warn('[Firestore] Group listener error:', error);
           }
-          this.courses = [];
-          this.updates = [];
-          this.views = [];
-          this.members = [];
-          this.requests = [];
-          this.persist();
-          this.clearFirestoreListeners();
-          this.notify();
-        }
-      });
-      this.firestoreUnsubscribers.push(groupUnsub);
+        );
+        this.firestoreUnsubscribers.push(groupUnsub);
+      } catch (e) {
+        console.warn('[Firestore] Failed to attach group listener:', e);
+      }
 
       // 2. Courses
-      const coursesQuery = query(collection(db, 'courses'), where('group_id', '==', currentGroupId));
-      const coursesUnsub = onSnapshot(coursesQuery, (snap) => {
-        const list: Course[] = [];
-        snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Course));
-        this.courses = list;
-        this.persist();
-        this.notify();
-      });
-      this.firestoreUnsubscribers.push(coursesUnsub);
+      try {
+        const coursesQuery = query(collection(db, 'courses'), where('group_id', '==', currentGroupId));
+        const coursesUnsub = onSnapshot(
+          coursesQuery,
+          (snap) => {
+            const list: Course[] = [];
+            snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Course));
+            this.courses = list;
+            this.persist();
+            this.notify();
+          },
+          (error) => {
+            console.warn('[Firestore] Courses listener error:', error);
+          }
+        );
+        this.firestoreUnsubscribers.push(coursesUnsub);
+      } catch (e) {
+        console.warn('[Firestore] Failed to attach courses listener:', e);
+      }
 
       // 3. Academic Updates
-      const updatesQuery = query(collection(db, 'updates'), where('group_id', '==', currentGroupId));
-      const updatesUnsub = onSnapshot(updatesQuery, (snap) => {
-        const list: AcademicUpdate[] = [];
-        snap.forEach((d) => {
-          const data = d.data();
-          list.push({
-            id: d.id,
-            ...data,
-            created_at: parseTimestampToIso(data.created_at),
-            updated_at: parseTimestampToIso(data.updated_at),
-          } as AcademicUpdate);
-        });
-        this.updates = list;
-        this.persist();
-        this.notify();
-      });
-      this.firestoreUnsubscribers.push(updatesUnsub);
+      try {
+        const updatesQuery = query(collection(db, 'updates'), where('group_id', '==', currentGroupId));
+        const updatesUnsub = onSnapshot(
+          updatesQuery,
+          (snap) => {
+            const list: AcademicUpdate[] = [];
+            snap.forEach((d) => {
+              const data = d.data();
+              list.push({
+                id: d.id,
+                ...data,
+                created_at: parseTimestampToIso(data.created_at),
+                updated_at: parseTimestampToIso(data.updated_at),
+              } as AcademicUpdate);
+            });
+            this.updates = list;
+            this.persist();
+            this.notify();
+          },
+          (error) => {
+            console.warn('[Firestore] Updates listener error:', error);
+          }
+        );
+        this.firestoreUnsubscribers.push(updatesUnsub);
+      } catch (e) {
+        console.warn('[Firestore] Failed to attach updates listener:', e);
+      }
 
       // 4. Update Views
       // Students listen ONLY to their personal view receipts (scalable: ~20 docs instead of 1,500+).
       // CR fetches the full roster on-demand when opening an update detail sheet.
-      const isCRUser = this.currentUser.role === 'cr';
-      const viewsQuery = isCRUser
-        ? query(collection(db, 'updateViews'), where('group_id', '==', currentGroupId))
-        : query(
-            collection(db, 'updateViews'),
-            where('group_id', '==', currentGroupId),
-            where('user_id', '==', this.currentUser.id)
-          );
-      const viewsUnsub = onSnapshot(viewsQuery, (snap) => {
-        const list: UpdateView[] = [];
-        snap.forEach((d) => list.push({ id: d.id, ...d.data() } as UpdateView));
-        this.views = list;
-        this.persist();
-        this.notify();
-      });
-      this.firestoreUnsubscribers.push(viewsUnsub);
+      try {
+        const isCRUser = this.currentUser.role === 'cr';
+        const viewsQuery = isCRUser
+          ? query(collection(db, 'updateViews'), where('group_id', '==', currentGroupId))
+          : query(
+              collection(db, 'updateViews'),
+              where('group_id', '==', currentGroupId),
+              where('user_id', '==', currentUserId)
+            );
+        const viewsUnsub = onSnapshot(
+          viewsQuery,
+          (snap) => {
+            const list: UpdateView[] = [];
+            snap.forEach((d) => list.push({ id: d.id, ...d.data() } as UpdateView));
+            this.views = list;
+            this.persist();
+            this.notify();
+          },
+          (error) => {
+            console.warn('[Firestore] Views listener error:', error);
+          }
+        );
+        this.firestoreUnsubscribers.push(viewsUnsub);
+      } catch (e) {
+        console.warn('[Firestore] Failed to attach views listener:', e);
+      }
 
       // 5. Group Members
-      const membersQuery = query(collection(db, 'groupMembers'), where('group_id', '==', currentGroupId));
-      const membersUnsub = onSnapshot(membersQuery, (snap) => {
-        const list: GroupMember[] = [];
-        snap.forEach((d) => list.push(d.data() as GroupMember));
-        this.members = list;
-        this.persist();
-        this.notify();
-      });
-      this.firestoreUnsubscribers.push(membersUnsub);
+      try {
+        const membersQuery = query(collection(db, 'groupMembers'), where('group_id', '==', currentGroupId));
+        const membersUnsub = onSnapshot(
+          membersQuery,
+          (snap) => {
+            const list: GroupMember[] = [];
+            snap.forEach((d) => list.push(d.data() as GroupMember));
+            this.members = list;
+            this.persist();
+            this.notify();
+          },
+          (error) => {
+            console.warn('[Firestore] Members listener error:', error);
+          }
+        );
+        this.firestoreUnsubscribers.push(membersUnsub);
+      } catch (e) {
+        console.warn('[Firestore] Failed to attach members listener:', e);
+      }
 
       // 6. Join Requests (If CR)
       if (this.currentUser.role === 'cr') {
-        const reqQuery = query(collection(db, 'joinRequests'), where('group_id', '==', currentGroupId));
-        const reqUnsub = onSnapshot(reqQuery, (snap) => {
-          const list: JoinRequest[] = [];
-          snap.forEach((d) => list.push({ id: d.id, ...d.data() } as JoinRequest));
-          this.requests = list;
-          this.persist();
-          this.notify();
-        });
-        this.firestoreUnsubscribers.push(reqUnsub);
+        try {
+          const reqQuery = query(collection(db, 'joinRequests'), where('group_id', '==', currentGroupId));
+          const reqUnsub = onSnapshot(
+            reqQuery,
+            (snap) => {
+              const list: JoinRequest[] = [];
+              snap.forEach((d) => list.push({ id: d.id, ...d.data() } as JoinRequest));
+              this.requests = list;
+              this.persist();
+              this.notify();
+            },
+            (error) => {
+              console.warn('[Firestore] Join requests listener error:', error);
+            }
+          );
+          this.firestoreUnsubscribers.push(reqUnsub);
+        } catch (e) {
+          console.warn('[Firestore] Failed to attach join requests listener:', e);
+        }
       }
     }
   }
 
   private clearFirestoreListeners() {
-    this.firestoreUnsubscribers.forEach((unsub) => unsub());
+    this.firestoreUnsubscribers.forEach((unsub) => {
+      try {
+        unsub();
+      } catch (e) {
+        console.warn('[Firestore] Error unsubscribing listener:', e);
+      }
+    });
     this.firestoreUnsubscribers = [];
   }
 

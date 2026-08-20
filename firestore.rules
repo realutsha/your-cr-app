@@ -30,13 +30,13 @@ service cloud.firestore {
       allow read: if isDiuUser();
       // On create: must be verified DIU user matching UID and authenticated email
       allow create: if isOwner(userId) && 
-                       request.resource.data.email.matches('(?i)^' + request.auth.token.email + '$') &&
+                       request.resource.data.email.lower() == request.auth.token.email.lower() &&
                        (request.resource.data.role == 'student' || request.resource.data.role == null);
       // On update: user can update own profile (role cannot be arbitrarily set to CR without hosting a group)
       // or group host can clear current_group_id upon group deletion/member removal
       allow update: if isDiuUser() && (
         (isOwner(userId) && 
-         request.resource.data.email.matches('(?i)^' + resource.data.email + '$') &&
+         request.resource.data.email.lower() == resource.data.email.lower() &&
          (request.resource.data.role == resource.data.role ||
           request.resource.data.role == 'student' ||
           (request.resource.data.role == 'cr' &&
@@ -45,7 +45,7 @@ service cloud.firestore {
         (resource.data.current_group_id != null &&
          isGroupHost(resource.data.current_group_id) &&
          request.resource.data.current_group_id == null &&
-         request.resource.data.email.matches('(?i)^' + resource.data.email + '$'))
+         request.resource.data.email.lower() == resource.data.email.lower())
       );
       allow delete: if false; // Permanent identity preservation
     }
@@ -58,13 +58,16 @@ service cloud.firestore {
       allow create: if isDiuUser() && 
                        request.resource.data.host_id == request.auth.uid;
       // Strictly only the CR host can update group details or delete the group
-      allow update, delete: if isGroupHost(groupId);
+      allow update, delete: if isDiuUser() && resource.data.host_id == request.auth.uid;
     }
 
     // 3. GROUP MEMBERS COLLECTION
     match /groupMembers/{memberId} {
-      // Scoped read: only members/CR of that group can see the roster
-      allow read: if isDiuUser() && isGroupMember(resource.data.group_id);
+      // Scoped read: member can read their own record or members of the group
+      allow read: if isDiuUser() && (
+        resource.data.user_id == request.auth.uid ||
+        isGroupMember(resource.data.group_id)
+      );
       // Students can add themselves on auto-approval, or CR host can add approved members
       allow create: if isDiuUser() && (
         (request.resource.data.user_id == request.auth.uid && memberId == request.resource.data.group_id + '_' + request.auth.uid) ||

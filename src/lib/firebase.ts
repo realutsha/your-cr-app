@@ -11,6 +11,10 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  memoryLocalCache,
   getFirestore,
   type Firestore,
 } from 'firebase/firestore';
@@ -71,8 +75,26 @@ export const app: FirebaseApp | null = isFirebaseConfigured
 // Initialize Firebase Authentication
 export const auth: Auth | null = app ? getAuth(app) : null;
 
-// Initialize Cloud Firestore
-export const db: Firestore | null = app ? getFirestore(app) : null;
+// Initialize Cloud Firestore with multi-tab persistence and fallback
+function initFirestore(firebaseApp: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    try {
+      return initializeFirestore(firebaseApp, {
+        localCache: memoryLocalCache(),
+      });
+    } catch {
+      return getFirestore(firebaseApp);
+    }
+  }
+}
+
+export const db: Firestore | null = app ? initFirestore(app) : null;
 
 // Google Auth Provider setup with DIU domain hint
 export const googleProvider = new GoogleAuthProvider();
