@@ -23,6 +23,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { Sheet } from './components/common/Sheet';
 import { Toast } from './components/common/Toast';
 import { ConfirmSheet } from './components/common/ConfirmSheet';
+import { IntroPopup } from './components/common/IntroPopup';
 import { BottomNav, NAV_H } from './components/navigation/BottomNav';
 import { HomeScreen } from './components/home/HomeScreen';
 import { CourseScreen } from './components/course/CourseScreen';
@@ -83,6 +84,10 @@ export function App() {
   const [confirm, setConfirm] = useState<'leave' | 'logout' | 'deleteGroup' | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [introDismissed, setIntroDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return sessionStorage.getItem('classmate_intro_seen') === 'true';
+  });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showToast = useCallback((msg: string) => {
@@ -327,6 +332,10 @@ export function App() {
     setActiveCourseId(null);
     setActiveCategory(null);
     setConfirm(null);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('classmate_intro_seen');
+    }
+    setIntroDismissed(false);
     showToast('Signed out');
   };
 
@@ -372,6 +381,17 @@ export function App() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', transition: 'background 220ms ease' }}>
       {toast && <Toast message={toast} />}
+
+      {!introDismissed && (
+        <IntroPopup
+          onDismiss={() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('classmate_intro_seen', 'true');
+            }
+            setIntroDismissed(true);
+          }}
+        />
+      )}
 
       {/* Main Viewport */}
       <div
