@@ -101,8 +101,42 @@ export function ProfileScreen({
 
         {group ? (
           <>
-            <div style={{ fontFamily: 'var(--font-head)', fontSize: 16.5, fontWeight: 700, color: 'var(--c-text)' }}>
-              {group.name}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'var(--font-head)',
+                  fontSize: 16.5,
+                  fontWeight: 700,
+                  color: 'var(--c-text)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {group.name}
+              </div>
+              {isCR && (
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--c-text-faint)',
+                    flexShrink: 0,
+                    letterSpacing: '0.02em',
+                  }}
+                  title="Class Capacity (Current / Max 50)"
+                >
+                  ({Math.min(50, Math.max(0, typeof group.member_count === 'number' ? group.member_count : 1))}/50)
+                </span>
+              )}
             </div>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-text-soft)', marginTop: 4 }}>
               <span
