@@ -70,6 +70,15 @@ function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<str
   return clean;
 }
 
+function parseTimestampToIso(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') return val;
+  if (typeof val.toDate === 'function') return val.toDate().toISOString();
+  if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+  if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
+  return new Date().toISOString();
+}
+
 /* ------------------------------------------------------------------
    FIREBASE CLOUD FIRESTORE APP STORE
 -------------------------------------------------------------------*/
@@ -403,7 +412,15 @@ class AppStore {
       const updatesQuery = query(collection(db, 'updates'), where('group_id', '==', currentGroupId));
       const updatesUnsub = onSnapshot(updatesQuery, (snap) => {
         const list: AcademicUpdate[] = [];
-        snap.forEach((d) => list.push({ id: d.id, ...d.data() } as AcademicUpdate));
+        snap.forEach((d) => {
+          const data = d.data();
+          list.push({
+            id: d.id,
+            ...data,
+            created_at: parseTimestampToIso(data.created_at),
+            updated_at: parseTimestampToIso(data.updated_at),
+          } as AcademicUpdate);
+        });
         this.updates = list;
         this.persist();
         this.notify();
@@ -1196,20 +1213,49 @@ class AppStore {
     return !this.views.some((v) => v.update_id === updateId && v.user_id === this.currentUser!.id);
   }
 
+  public getCategoryUpdateCount(courseId: string, category: AcademicCategory): number {
+    const currentGroup = this.getCurrentUserGroup();
+    if (!currentGroup) return 0;
+
+    const normCat = (category || '').trim().toLowerCase();
+    const normCourseId = (courseId || '').trim();
+
+    return this.updates.filter((u) => {
+      if (u.group_id !== currentGroup.id) return false;
+      if ((u.course_id || '').trim() !== normCourseId) return false;
+      const cat = (u.category || '').trim().toLowerCase();
+      const sec = (u.section || '').trim().toLowerCase();
+      return cat === normCat || sec === normCat;
+    }).length;
+  }
+
   public getCategoryUnreadCount(courseId: string, category: AcademicCategory): number {
     if (!this.currentUser) return 0;
     const currentGroup = this.getCurrentUserGroup();
     if (!currentGroup || currentGroup.host_id === this.currentUser.id) return 0;
 
+    const normCat = (category || '').trim().toLowerCase();
+    const normCourseId = (courseId || '').trim();
+
     const catUpdates = this.updates.filter(
       (u) =>
         u.group_id === currentGroup.id &&
-        u.course_id === courseId &&
-        (u.category === category || u.section === category) &&
+        (u.course_id || '').trim() === normCourseId &&
+        ((u.category || '').trim().toLowerCase() === normCat || (u.section || '').trim().toLowerCase() === normCat) &&
         u.status === 'pending'
     );
 
     return catUpdates.filter((u) => this.isUpdateUnread(u.id)).length;
+  }
+
+  public getCourseUpdateCount(courseId: string): number {
+    const currentGroup = this.getCurrentUserGroup();
+    if (!currentGroup) return 0;
+
+    const normCourseId = (courseId || '').trim();
+    return this.updates.filter(
+      (u) => u.group_id === currentGroup.id && (u.course_id || '').trim() === normCourseId
+    ).length;
   }
 
   public getCourseUnreadCount(courseId: string): number {
@@ -1217,8 +1263,12 @@ class AppStore {
     const currentGroup = this.getCurrentUserGroup();
     if (!currentGroup || currentGroup.host_id === this.currentUser.id) return 0;
 
+    const normCourseId = (courseId || '').trim();
     const courseUpdates = this.updates.filter(
-      (u) => u.group_id === currentGroup.id && u.course_id === courseId && u.status === 'pending'
+      (u) =>
+        u.group_id === currentGroup.id &&
+        (u.course_id || '').trim() === normCourseId &&
+        u.status === 'pending'
     );
 
     return courseUpdates.filter((u) => this.isUpdateUnread(u.id)).length;
@@ -1345,11 +1395,17 @@ class AppStore {
     let list = this.updates.filter((u) => u.group_id === currentGroup.id);
 
     if (courseId) {
-      list = list.filter((u) => u.course_id === courseId);
+      const normCourseId = courseId.trim();
+      list = list.filter((u) => (u.course_id || '').trim() === normCourseId);
     }
 
     if (category) {
-      list = list.filter((u) => u.category === category || u.section === category);
+      const normCat = category.trim().toLowerCase();
+      list = list.filter((u) => {
+        const cat = (u.category || '').trim().toLowerCase();
+        const sec = (u.section || '').trim().toLowerCase();
+        return cat === normCat || sec === normCat;
+      });
     }
 
     const studentMembers = this.members.filter(
@@ -1371,7 +1427,9 @@ class AppStore {
         // Pending first, then by created_at desc
         if (a.status === 'pending' && b.status !== 'pending') return -1;
         if (a.status !== 'pending' && b.status === 'pending') return 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        const timeA = new Date(a.created_at).getTime() || 0;
+        const timeB = new Date(b.created_at).getTime() || 0;
+        return timeB - timeA;
       });
   }
 

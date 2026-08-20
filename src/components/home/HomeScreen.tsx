@@ -1,6 +1,6 @@
 import { ChevronRight, FolderPlus, Plus } from 'lucide-react';
 import type { Course, Group } from '../../types';
-import { UnreadBadge } from '../common/UnreadBadge';
+import { store } from '../../lib/store';
 
 interface HomeScreenProps {
   group: Group;
@@ -101,7 +101,8 @@ export function HomeScreen({
         /* List of Courses */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {courses.map((course) => {
-            const unreadCount = course.unread_count || 0;
+            const updateCount = store.getCourseUpdateCount(course.id);
+            const unreadCount = store.getCourseUnreadCount(course.id);
             return (
               <button
                 key={course.id}
@@ -136,7 +137,30 @@ export function HomeScreen({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <UnreadBadge count={unreadCount} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {unreadCount > 0 && (
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: 999,
+                          background: 'var(--c-danger)',
+                          display: 'inline-block',
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12.5,
+                        fontWeight: updateCount > 0 ? 700 : 400,
+                        color: updateCount > 0 ? 'var(--c-text)' : 'var(--c-text-faint)',
+                      }}
+                    >
+                      {updateCount}
+                    </span>
+                  </div>
                   <ChevronRight size={16} color="var(--c-text-faint)" />
                 </div>
               </button>

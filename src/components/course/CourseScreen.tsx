@@ -1,7 +1,6 @@
 import { ChevronLeft, ChevronRight, Edit3, Plus } from 'lucide-react';
 import { CATEGORIES, type AcademicCategory, type Course } from '../../types';
 import { store } from '../../lib/store';
-import { UnreadBadge } from '../common/UnreadBadge';
 
 interface CourseScreenProps {
   course: Course;
@@ -82,6 +81,7 @@ export function CourseScreen({
       {/* 4 Fixed Categories */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {CATEGORIES.map((cat) => {
+          const count = store.getCategoryUpdateCount(course.id, cat.key);
           const unreadCount = store.getCategoryUnreadCount(course.id, cat.key);
           return (
             <button
@@ -114,7 +114,30 @@ export function CourseScreen({
               </span>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <UnreadBadge count={unreadCount} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: 999,
+                        background: 'var(--c-danger)',
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12.5,
+                      fontWeight: count > 0 ? 700 : 400,
+                      color: count > 0 ? 'var(--c-text)' : 'var(--c-text-faint)',
+                    }}
+                  >
+                    {count}
+                  </span>
+                </div>
                 <ChevronRight size={16} color="var(--c-text-faint)" />
               </div>
             </button>
