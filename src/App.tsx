@@ -392,10 +392,13 @@ export function App() {
     return <MaintenanceScreen message={shutdownMessage} />;
   }
 
-  if (!currentUser) {
+  if (!currentUser || (typeof window !== 'undefined' && window.location.pathname === '/login')) {
     return (
       <AuthModal
         onSuccess={() => {
+          if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+            window.history.replaceState({}, '', '/');
+          }
           setCurrentUser(store.getCurrentUser());
           setCurrentGroup(store.getCurrentUserGroup());
         }}

@@ -5,12 +5,13 @@ import { adminApi } from '../../lib/adminApi';
 interface AdminLoginProps {
   onSuccess: () => void;
   onGoToApp: () => void;
+  isAccessDeniedInitial?: boolean;
 }
 
-export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) => {
+export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp, isAccessDeniedInitial = false }) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isAccessDenied, setIsAccessDenied] = useState(false);
+  const [isAccessDenied, setIsAccessDenied] = useState(isAccessDeniedInitial);
   const [attemptedEmail, setAttemptedEmail] = useState<string | null>(null);
 
   const handleAdminSignIn = async (useRedirect = false) => {
@@ -34,11 +35,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) 
       const email = cred.user.email || '';
       setAttemptedEmail(email);
 
-      // Verify server-side authorization
+      // Secure server-side validation against backend Identity Toolkit & Claims
       const verifyRes = await adminApi.verifyAdmin();
       if (!verifyRes.authorized) {
         setIsAccessDenied(true);
-        setErrorMsg(verifyRes.error || 'Access Denied: You do not have administrator permissions.');
+        setErrorMsg(verifyRes.error || 'Access Denied: You do not have administrator permissions for ClassMate.');
         await firebaseSignOut(auth).catch(() => {});
         setLoading(false);
         return;
@@ -68,72 +69,118 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) 
       <div
         style={{
           width: '100%',
-          maxWidth: 440,
+          maxWidth: 420,
           background: '#121624',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 20,
-          padding: '36px 32px',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+          padding: '40px 32px',
+          boxShadow: '0 24px 48px rgba(0,0,0,0.55)',
+          textAlign: 'center',
         }}
       >
-        {/* Shield Icon & Title */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        {/* Brand & Portal Header */}
+        <div style={{ marginBottom: 32 }}>
           <div
             style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))',
-              border: '1px solid rgba(129,140,248,0.3)',
+              width: 52,
+              height: 52,
+              borderRadius: 14,
+              background: '#818CF8',
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              fontFamily: 'var(--font-head)',
+              fontWeight: 800,
+              fontSize: 20,
               margin: '0 auto 16px',
+              boxShadow: '0 8px 24px rgba(129,140,248,0.3)',
             }}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            CM
           </div>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#818CF8', marginBottom: 6 }}>
-            ClassMate Admin Control
+
+          <div
+            style={{
+              fontFamily: 'var(--font-head)',
+              fontSize: 22,
+              fontWeight: 800,
+              color: '#FFFFFF',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Class Mate
           </div>
-          <h1 style={{ fontFamily: 'var(--font-head)', fontSize: 22, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
-            Administrator Access
-          </h1>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 8, lineHeight: 1.5 }}>
-            Restricted area. Please sign in with your authorized administrator Google account.
-          </p>
+
+          <div
+            style={{
+              display: 'inline-block',
+              marginTop: 6,
+              background: 'rgba(129,140,248,0.15)',
+              border: '1px solid rgba(129,140,248,0.3)',
+              color: '#A5B4FC',
+              padding: '3px 10px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 0.8,
+              textTransform: 'uppercase',
+            }}
+          >
+            Admin Portal
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              color: 'rgba(255,255,255,0.7)',
+              marginTop: 14,
+              fontWeight: 500,
+            }}
+          >
+            Administrator Sign In
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: 'rgba(255,255,255,0.45)',
+              marginTop: 4,
+            }}
+          >
+            Sign in with your authorized Google account
+          </div>
         </div>
 
-        {/* Error / Access Denied Banner */}
+        {/* Error / Access Denied Box */}
         {errorMsg && (
           <div
             style={{
               background: isAccessDenied ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-              border: `1px solid ${isAccessDenied ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+              border: `1px solid ${isAccessDenied ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
               borderRadius: 12,
               padding: '14px 16px',
               marginBottom: 24,
+              textAlign: 'left',
               fontSize: 13,
               color: isAccessDenied ? '#FCA5A5' : '#FCD34D',
               lineHeight: 1.45,
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>
-              {isAccessDenied ? '🚫 Access Denied' : 'Authentication Error'}
+            <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{isAccessDenied ? '🚫 Access Denied' : '⚠️ Authentication Error'}</span>
             </div>
             <div>{errorMsg}</div>
             {attemptedEmail && (
               <div style={{ marginTop: 6, fontSize: 11.5, opacity: 0.85 }}>
-                Account: <strong>{attemptedEmail}</strong>
+                Account attempted: <strong>{attemptedEmail}</strong>
               </div>
             )}
           </div>
         )}
 
-        {/* Sign In Button */}
+        {/* Primary Action Button: Continue with Google */}
         <button
+          id="admin-google-signin-btn"
           onClick={() => handleAdminSignIn(false)}
           disabled={loading}
           style={{
@@ -146,11 +193,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) 
             border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: 12,
             padding: '14px 18px',
-            fontSize: 14,
+            fontSize: 14.5,
             fontWeight: 600,
             color: '#FFFFFF',
             cursor: loading ? 'default' : 'pointer',
-            transition: 'background 160ms ease, transform 100ms ease',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            transition: 'background 160ms ease, border-color 160ms ease, transform 100ms ease',
           }}
         >
           {loading ? (
@@ -166,7 +214,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) 
                   animation: 'spin 0.8s linear infinite',
                 }}
               />
-              <span>Verifying authorization...</span>
+              <span>Verifying admin authorization...</span>
             </div>
           ) : (
             <>
@@ -176,38 +224,50 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) 
                 <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15z" />
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
               </svg>
-              <span>Sign in with Google Admin</span>
+              <span>Continue with Google</span>
             </>
           )}
         </button>
 
+        {/* Notice text */}
+        <div
+          style={{
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.45)',
+            marginTop: 20,
+            lineHeight: 1.5,
+          }}
+        >
+          Only authorized administrators can access this dashboard.
+        </div>
+
         {/* Fallback Redirect */}
-        <div style={{ textAlign: 'center', marginTop: 14 }}>
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
           <button
             onClick={() => handleAdminSignIn(true)}
             disabled={loading}
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255,255,255,0.4)',
-              fontSize: 12,
+              color: 'rgba(255,255,255,0.35)',
+              fontSize: 11.5,
               cursor: loading ? 'default' : 'pointer',
               textDecoration: 'underline',
             }}
           >
-            Trouble with popups? Use redirect sign-in
+            Having trouble? Use redirect sign-in
           </button>
         </div>
 
-        {/* Return to Main App */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 28, paddingTop: 20, textAlign: 'center' }}>
+        {/* Link back to Student App */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 28, paddingTop: 18 }}>
           <button
             onClick={onGoToApp}
             style={{
               background: 'transparent',
               border: 'none',
               color: '#818CF8',
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: 500,
               cursor: 'pointer',
               display: 'inline-flex',
@@ -215,7 +275,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onGoToApp }) 
               gap: 6,
             }}
           >
-            <span>&larr; Back to ClassMate Student App</span>
+            <span>&larr; Back to ClassMate App</span>
           </button>
         </div>
       </div>

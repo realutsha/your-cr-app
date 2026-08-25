@@ -14,7 +14,9 @@ type AdminTab = 'overview' | 'groups' | 'users' | 'settings' | 'audit';
 export const AdminLayout: React.FC = () => {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
-  const [currentTab, setCurrentTab] = useState<AdminTab>(() => {
+  const [isAccessDenied, setIsAccessDenied] = useState<boolean>(false);
+
+  const getInitialTab = (): AdminTab => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (path.includes('/groups')) return 'groups';
@@ -23,8 +25,9 @@ export const AdminLayout: React.FC = () => {
       if (path.includes('/audit')) return 'audit';
     }
     return 'overview';
-  });
+  };
 
+  const [currentTab, setCurrentTab] = useState<AdminTab>(getInitialTab);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [system, setSystem] = useState<AdminSystemConfig | null>(null);
   const [groups, setGroups] = useState<AdminGroupItem[]>([]);
@@ -71,6 +74,10 @@ export const AdminLayout: React.FC = () => {
     if (!auth?.currentUser) {
       setAuthorized(false);
       setLoading(false);
+      // If user visited a protected admin path directly while unauthenticated, ensure URL is /admin/login
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
+        window.history.replaceState({}, '', '/admin/login');
+      }
       return;
     }
 
@@ -78,13 +85,22 @@ export const AdminLayout: React.FC = () => {
       const res = await adminApi.verifyAdmin();
       if (res.authorized) {
         setAuthorized(true);
+        setIsAccessDenied(false);
         setAdminEmail(res.email || auth.currentUser.email);
+        
+        // If user logged in from /admin/login, redirect URL to /admin
+        if (typeof window !== 'undefined' && window.location.pathname === '/admin/login') {
+          window.history.replaceState({}, '', '/admin');
+          setCurrentTab('overview');
+        }
         loadDashboardData();
       } else {
         setAuthorized(false);
+        setIsAccessDenied(true);
       }
     } catch {
       setAuthorized(false);
+      setIsAccessDenied(true);
     } finally {
       setLoading(false);
     }
@@ -94,7 +110,15 @@ export const AdminLayout: React.FC = () => {
     checkAuth();
   }, [checkAuth]);
 
-  // Sync tab with URL
+  // Sync tab with URL on popstate
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentTab(getInitialTab());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleTabChange = (tab: AdminTab) => {
     setCurrentTab(tab);
     if (typeof window !== 'undefined' && window.history) {
@@ -103,12 +127,16 @@ export const AdminLayout: React.FC = () => {
     }
   };
 
-  const handleSignOut = async () => {
+  const handleAdminLogout = async () => {
     if (auth) {
       await firebaseSignOut(auth).catch(() => {});
     }
     setAuthorized(false);
     setAdminEmail(null);
+    setIsAccessDenied(false);
+    if (typeof window !== 'undefined' && window.history) {
+      window.history.pushState({}, '', '/admin/login');
+    }
     showToast('Signed out of admin dashboard');
   };
 
@@ -118,8 +146,18 @@ export const AdminLayout: React.FC = () => {
     }
   };
 
-  if (authorized === false || (!loading && !authorized)) {
-    return <AdminLogin onSuccess={checkAuth} onGoToApp={handleGoToApp} />;
+  // If unauthenticated, unauthorized, or currently on /admin/login -> Render Admin Login Page
+  const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/admin/login';
+  if (isLoginPage || authorized === false || (!loading && !authorized)) {
+    return (
+      <AdminLogin
+        onSuccess={() => {
+          checkAuth();
+        }}
+        onGoToApp={handleGoToApp}
+        isAccessDeniedInitial={isAccessDenied}
+      />
+    );
   }
 
   return (
@@ -177,7 +215,7 @@ export const AdminLayout: React.FC = () => {
             </div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 16, color: '#FFFFFF', lineHeight: 1.2 }}>
-                ClassMate <span style={{ color: '#818CF8', fontSize: 12, fontWeight: 700, background: 'rgba(129,140,248,0.15)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>ADMIN</span>
+                ClassMate <span style={{ color: '#818CF8', fontSize: 12, fontWeight: 700, background: 'rgba(129,140,248,0.15)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>ADMIN PORTAL</span>
               </div>
             </div>
           </div>
@@ -185,7 +223,7 @@ export const AdminLayout: React.FC = () => {
           {/* Right Action Items */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {adminEmail && (
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+              <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
                 {adminEmail}
               </span>
             )}
@@ -207,18 +245,21 @@ export const AdminLayout: React.FC = () => {
             </button>
 
             <button
-              onClick={handleSignOut}
+              id="admin-logout-btn"
+              onClick={handleAdminLogout}
               style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#F87171',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                color: '#FCA5A5',
                 fontSize: 12.5,
-                fontWeight: 500,
+                fontWeight: 600,
                 cursor: 'pointer',
-                padding: '6px 8px',
+                padding: '6px 12px',
+                borderRadius: 8,
+                transition: 'all 140ms ease',
               }}
             >
-              Sign Out
+              Admin Logout
             </button>
           </div>
         </div>
