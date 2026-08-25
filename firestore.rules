@@ -8,33 +8,41 @@ service cloud.firestore {
              request.auth.token.email_verified == true &&
              request.auth.token.email.matches('(?i)^[a-zA-Z0-9._%+-]+@diu[.]edu[.]bd$');
     }
+
+    // Secure administrator verification
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        request.auth.token.email.lower() == 'madhurzamutsha@gmail.com'
+      );
+    }
     
     function isOwner(userId) {
-      return isDiuUser() && request.auth.uid == userId;
+      return (isDiuUser() || isAdmin()) && request.auth.uid == userId;
     }
 
     function isGroupHost(groupId) {
-      return isDiuUser() && 
+      return (isDiuUser() || isAdmin()) && 
              exists(/databases/$(database)/documents/groups/$(groupId)) &&
              get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid;
     }
 
     function isGroupMember(groupId) {
-      return isDiuUser() && 
+      return (isDiuUser() || isAdmin()) && 
              (isGroupHost(groupId) || 
               exists(/databases/$(database)/documents/groupMembers/$(groupId + '_' + request.auth.uid)));
     }
 
     // 1. USERS COLLECTION (Permanent Profiles - Never deleted by 4-month expiration)
     match /users/{userId} {
-      allow read: if isDiuUser();
+      allow read: if isDiuUser() || isAdmin();
       // On create: must be verified DIU user matching UID and authenticated email
       allow create: if isOwner(userId) && 
                        request.resource.data.email.lower() == request.auth.token.email.lower() &&
                        (request.resource.data.role == 'student' || request.resource.data.role == null);
       // On update: user can update own profile (role cannot be arbitrarily set to CR without hosting a group)
       // or group host can clear current_group_id upon group deletion/member removal
-      allow update: if isDiuUser() && (
+      allow update: if (isDiuUser() || isAdmin()) && (
         (isOwner(userId) && 
          request.resource.data.email.lower() == resource.data.email.lower() &&
          (request.resource.data.role == resource.data.role ||
@@ -53,28 +61,28 @@ service cloud.firestore {
     // 2. GROUPS COLLECTION
     match /groups/{groupId} {
       // Readable by all DIU users to allow joining via 6-character code lookup
-      allow read: if isDiuUser();
+      allow read: if isDiuUser() || isAdmin();
       // Only verified DIU users can create a new group as host
-      allow create: if isDiuUser() && 
+      allow create: if (isDiuUser() || isAdmin()) && 
                        request.resource.data.host_id == request.auth.uid;
       // Strictly only the CR host can update group details or delete the group
-      allow update, delete: if isDiuUser() && resource.data.host_id == request.auth.uid;
+      allow update, delete: if (isDiuUser() || isAdmin()) && resource.data.host_id == request.auth.uid;
     }
 
     // 3. GROUP MEMBERS COLLECTION
     match /groupMembers/{memberId} {
-      // Scoped read: member can read their own record or members of the group
-      allow read: if isDiuUser() && (
+      // Scoped read: member can read their own record or members of the group, or admin
+      allow read: if (isDiuUser() && (
         resource.data.user_id == request.auth.uid ||
         isGroupMember(resource.data.group_id)
-      );
+      )) || isAdmin();
       // Students can add themselves on auto-approval, or CR host can add approved members
-      allow create: if isDiuUser() && (
+      allow create: if (isDiuUser() || isAdmin()) && (
         (request.resource.data.user_id == request.auth.uid && memberId == request.resource.data.group_id + '_' + request.auth.uid) ||
         isGroupHost(request.resource.data.group_id)
       );
       // Students can leave (delete own membership), or CR host can remove members
-      allow update, delete: if isDiuUser() && (
+      allow update, delete: if (isDiuUser() || isAdmin()) && (
         resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
       );
@@ -82,14 +90,14 @@ service cloud.firestore {
 
     // 4. JOIN REQUESTS COLLECTION
     match /joinRequests/{requestId} {
-      allow read: if isDiuUser() && (
+      allow read: if (isDiuUser() && (
         resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
-      );
+      )) || isAdmin();
       allow create: if isDiuUser() && 
                        request.resource.data.user_id == request.auth.uid;
       allow update: if isGroupHost(resource.data.group_id);
-      allow delete: if isDiuUser() && (
+      allow delete: if (isDiuUser() || isAdmin()) && (
         resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
       );
@@ -98,7 +106,7 @@ service cloud.firestore {
     // 5. COURSES COLLECTION
     match /courses/{courseId} {
       // Scoped read: only group members can see courses for their class
-      allow read: if isDiuUser() && isGroupMember(resource.data.group_id);
+      allow read: if (isDiuUser() && isGroupMember(resource.data.group_id)) || isAdmin();
       allow create: if isDiuUser() && isGroupHost(request.resource.data.group_id);
       allow update: if isDiuUser() && isGroupHost(resource.data.group_id);
       allow delete: if isDiuUser() && isGroupHost(resource.data.group_id);
@@ -107,7 +115,7 @@ service cloud.firestore {
     // 6. ACADEMIC UPDATES COLLECTION (Quiz, Lab, Presentation, Assignment)
     match /updates/{updateId} {
       // Scoped read: only group members can see academic notices for their class
-      allow read: if isDiuUser() && isGroupMember(resource.data.group_id);
+      allow read: if (isDiuUser() && isGroupMember(resource.data.group_id)) || isAdmin();
       // Strictly only the CR host can post, edit, or delete updates
       allow create: if isDiuUser() && isGroupHost(request.resource.data.group_id);
       allow update: if isDiuUser() && isGroupHost(resource.data.group_id);
@@ -117,10 +125,10 @@ service cloud.firestore {
     // 7. UPDATE VIEWS (Read Receipts)
     match /updateViews/{viewId} {
       // View receipts only readable by the student who viewed or the CR host
-      allow read: if isDiuUser() && (
+      allow read: if (isDiuUser() && (
         resource.data.user_id == request.auth.uid ||
         isGroupHost(resource.data.group_id)
-      );
+      )) || isAdmin();
       // Students can only create their own view record within their joined group
       allow create: if isDiuUser() && 
                        request.resource.data.user_id == request.auth.uid &&
@@ -139,6 +147,21 @@ service cloud.firestore {
       allow update: if isDiuUser() && resource.data.user_id == request.auth.uid && request.resource.data.user_id == request.auth.uid;
       allow delete: if isDiuUser() && resource.data.user_id == request.auth.uid;
     }
+
+    // 9. APP CONFIGURATION (Global Operational & Shutdown State)
+    match /appConfig/{configId} {
+      // Public read so student & CR apps can check availability & maintenance notices
+      allow read: if true;
+      // Privileged writes only by authorized administrator
+      allow write: if isAdmin();
+    }
+
+    // 10. ADMIN AUDIT LOGS (Immutable security logs)
+    match /adminAuditLogs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
   }
 }
+
 

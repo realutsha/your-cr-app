@@ -34,6 +34,8 @@ import { CourseManageSheet } from './components/course/CourseManageSheet';
 import { JoinSheet } from './components/group/JoinSheet';
 import { CreateClassSheet } from './components/group/CreateClassSheet';
 import { ProfileScreen } from './components/profile/ProfileScreen';
+import { MaintenanceScreen } from './components/common/MaintenanceScreen';
+import { AdminLayout } from './components/admin/AdminLayout';
 
 const CANONICAL_DOMAIN = 'class-mate-woad.vercel.app';
 
@@ -62,8 +64,22 @@ export function App() {
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
   );
   const [hasFcmToken, setHasFcmToken] = useState<boolean>(Boolean(store.getUserFcmToken()));
+  const [isShutdown, setIsShutdown] = useState<boolean>(store.isAppShutdown());
+  const [shutdownMessage, setShutdownMessage] = useState<string>(store.getShutdownMessage());
+  const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.startsWith('/admin');
+  });
 
   const [screen, setScreen] = useState<'home' | 'profile'>('home');
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setIsAdminRoute(window.location.pathname.startsWith('/admin'));
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
 
   // Navigation Hierarchy State
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
@@ -141,6 +157,8 @@ export function App() {
       setCourses(store.getCourses());
       setUpdates(store.getAcademicUpdates());
       setHasFcmToken(Boolean(store.getUserFcmToken()));
+      setIsShutdown(store.isAppShutdown());
+      setShutdownMessage(store.getShutdownMessage());
     });
     const unsubTheme = subscribeTheme((t) => setThemePref(t));
     const unsubFCM = initForegroundNotificationListener((title, body) => {
@@ -339,6 +357,10 @@ export function App() {
     showToast('Signed out');
   };
 
+  if (isAdminRoute) {
+    return <AdminLayout />;
+  }
+
   if (!authReady) {
     return (
       <div
@@ -364,6 +386,10 @@ export function App() {
         />
       </div>
     );
+  }
+
+  if (isShutdown) {
+    return <MaintenanceScreen message={shutdownMessage} />;
   }
 
   if (!currentUser) {

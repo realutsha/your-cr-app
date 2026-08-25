@@ -98,6 +98,11 @@ class AppStore {
   private courses: Course[] = [];
   private updates: AcademicUpdate[] = [];
   private views: UpdateView[] = [];
+  private isShutdown: boolean = false;
+  private shutdownMessage: string = 'Class Mate is temporarily unavailable for maintenance. Please try again later.';
+  private scheduledStart: string | null = null;
+  private scheduledEnd: string | null = null;
+  private systemStatusUnsub: (() => void) | null = null;
   private listeners: Set<() => void> = new Set();
   private firestoreUnsubscribers: (() => void)[] = [];
   private activeSyncPromise: Promise<User> | null = null;
@@ -107,6 +112,7 @@ class AppStore {
     this.loadFromStorage();
     this.checkGroupExpirations();
     this.initFirebaseAuthListener();
+    this.initSystemStatusListener();
 
     if (typeof window !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
@@ -588,6 +594,9 @@ class AppStore {
       }
     });
     this.firestoreUnsubscribers = [];
+    if (this.systemStatusUnsub) {
+      // Retain system listener or keep active
+    }
   }
 
   public checkGroupExpirations() {
@@ -1922,6 +1931,82 @@ class AppStore {
       return null;
     }
   }
+
+  // ==========================================
+  // SYSTEM AVAILABILITY & SHUTDOWN STATUS
+  // ==========================================
+
+  private initSystemStatusListener() {
+    const dbInstance = db;
+    if (!dbInstance) return;
+
+    try {
+      const configRef = doc(dbInstance, 'appConfig', 'system');
+      this.systemStatusUnsub = onSnapshot(
+        configRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            this.isShutdown = Boolean(data.isShutdown);
+            this.shutdownMessage =
+              data.shutdownMessage ||
+              'Class Mate is temporarily unavailable for maintenance. Please try again later.';
+            this.scheduledStart = data.scheduledStart || null;
+            this.scheduledEnd = data.scheduledEnd || null;
+          } else {
+            this.isShutdown = false;
+            this.scheduledStart = null;
+            this.scheduledEnd = null;
+          }
+          this.notify();
+        },
+        (error) => {
+          // Fail-safe: if permission or temporary network glitch occurs, do NOT lock out users
+          console.warn('System status listener notice (failing safely to ONLINE):', error);
+        }
+      );
+    } catch (e) {
+      console.warn('Could not initialize system status listener:', e);
+    }
+  }
+
+  public isAppShutdown(): boolean {
+    if (this.isShutdown) return true;
+    if (this.scheduledStart && this.scheduledEnd) {
+      const now = Date.now();
+      const start = new Date(this.scheduledStart).getTime();
+      const end = new Date(this.scheduledEnd).getTime();
+      if (!isNaN(start) && !isNaN(end) && now >= start && now <= end) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public getShutdownMessage(): string {
+    return this.shutdownMessage;
+  }
+
+  public async checkSystemStatusNow(): Promise<boolean> {
+    const dbInstance = db;
+    if (!dbInstance) return false;
+    try {
+      const configRef = doc(dbInstance, 'appConfig', 'system');
+      const snap = await getDoc(configRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        this.isShutdown = Boolean(data.isShutdown);
+        this.shutdownMessage =
+          data.shutdownMessage ||
+          'Class Mate is temporarily unavailable for maintenance. Please try again later.';
+        this.scheduledStart = data.scheduledStart || null;
+        this.scheduledEnd = data.scheduledEnd || null;
+        this.notify();
+      }
+    } catch {}
+    return this.isAppShutdown();
+  }
 }
 
 export const store = new AppStore();
+
