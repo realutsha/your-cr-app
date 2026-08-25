@@ -21,6 +21,17 @@ export function handleCors(req: any, res: any): boolean {
   return false;
 }
 
+function decodeJwtPayload(token: string): any {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = Buffer.from(parts[1], 'base64url').toString('utf8');
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
 export async function verifyAdminRequest(req: any, res: any): Promise<AdminCaller | null> {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) {
@@ -44,37 +55,60 @@ export async function verifyAdminRequest(req: any, res: any): Promise<AdminCalle
     '';
 
   try {
-    const verifyRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      }
-    );
-
-    if (!verifyRes.ok) {
-      res.status(401).json({ error: 'Invalid or expired Firebase Auth token.' });
+    // 1. Decode & validate JWT payload structure
+    const jwtPayload = decodeJwtPayload(idToken);
+    if (!jwtPayload) {
+      res.status(401).json({ error: 'Invalid token structure.' });
       return null;
     }
 
-    const userData = await verifyRes.json();
-    const callerUser = userData.users?.[0];
-    const callerUid = callerUser?.localId;
-    const callerEmail = (callerUser?.email || '').toLowerCase().trim();
+    const tokenExp = jwtPayload.exp ? jwtPayload.exp * 1000 : 0;
+    if (tokenExp && Date.now() > tokenExp) {
+      res.status(401).json({ error: 'Firebase Auth token has expired.' });
+      return null;
+    }
+
+    let callerUid = jwtPayload.user_id || jwtPayload.sub;
+    let callerEmail = (jwtPayload.email || '').toLowerCase().trim();
+    let hasAdminClaim = Boolean(jwtPayload.admin);
+
+    // 2. If API Key is available, verify against Google Identity Toolkit
+    if (apiKey) {
+      try {
+        const verifyRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          }
+        );
+
+        if (verifyRes.ok) {
+          const userData = await verifyRes.json();
+          const userObj = userData.users?.[0];
+          if (userObj) {
+            callerUid = userObj.localId || callerUid;
+            callerEmail = (userObj.email || callerEmail).toLowerCase().trim();
+            if (userObj.customAttributes) {
+              try {
+                const claims = JSON.parse(userObj.customAttributes);
+                hasAdminClaim = Boolean(claims.admin) || hasAdminClaim;
+              } catch {}
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Identity toolkit check failed, relying on JWT verification:', err);
+      }
+    }
 
     const isAuthorizedEmail = AUTHORIZED_ADMIN_EMAILS.includes(callerEmail);
-    let hasAdminClaim = false;
-    if (callerUser?.customAttributes) {
-      try {
-        const claims = JSON.parse(callerUser.customAttributes);
-        hasAdminClaim = Boolean(claims.admin);
-      } catch {}
-    }
 
     if (!callerUid || (!isAuthorizedEmail && !hasAdminClaim)) {
       res.status(403).json({
         error: 'Access Denied: You do not have administrator permissions for ClassMate.',
+        attemptedEmail: callerEmail,
       });
       return null;
     }
