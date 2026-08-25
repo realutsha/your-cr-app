@@ -5,10 +5,11 @@ import { adminApi } from '../../lib/adminApi';
 interface AdminGroupsTabProps {
   groups: AdminGroupItem[];
   loading: boolean;
+  error?: string | null;
   onRefresh: () => void;
 }
 
-export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading, onRefresh }) => {
+export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading, error, onRefresh }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedGroup, setSelectedGroup] = useState<AdminGroupItem | null>(null);
@@ -143,6 +144,13 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                 <tr>
                   <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
                     Loading groups data...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#FCA5A5' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Error loading groups</div>
+                    <div style={{ fontSize: 12 }}>{error}</div>
                   </td>
                 </tr>
               ) : filteredGroups.length === 0 ? (

@@ -36,6 +36,7 @@ export const AdminLayout: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
 
   const [loadingData, setLoadingData] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -43,29 +44,58 @@ export const AdminLayout: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const loadDashboardData = useCallback(async (token?: string) => {
+  const loadDashboardData = useCallback(async () => {
     setLoadingData(true);
-    try {
-      const [statsRes, groupsRes, usersRes, auditRes] = await Promise.allSettled([
-        adminApi.getStats(token),
-        adminApi.getGroups(token),
-        adminApi.getUsers(token),
-        adminApi.getAuditLogs(token),
-      ]);
+    setDataError(null);
 
-      if (statsRes.status === 'fulfilled') {
-        setStats(statsRes.value.stats);
-        setSystem(statsRes.value.system);
+    console.log('[Admin Dashboard] Beginning full data sync from Firestore...');
+
+    let statsError: string | null = null;
+    let groupsError: string | null = null;
+    let usersError: string | null = null;
+
+    try {
+      const statsRes = await adminApi.getStats().catch((err) => {
+        statsError = err.message || String(err);
+        return null;
+      });
+
+      const groupsRes = await adminApi.getGroups().catch((err) => {
+        groupsError = err.message || String(err);
+        return null;
+      });
+
+      const usersRes = await adminApi.getUsers().catch((err) => {
+        usersError = err.message || String(err);
+        return null;
+      });
+
+      const auditRes = await adminApi.getAuditLogs().catch(() => []);
+
+      if (statsRes) {
+        setStats(statsRes.stats);
+        setSystem(statsRes.system);
       }
-      if (groupsRes.status === 'fulfilled') {
-        setGroups(groupsRes.value);
+      if (groupsRes) {
+        setGroups(groupsRes);
       }
-      if (usersRes.status === 'fulfilled') {
-        setUsers(usersRes.value);
+      if (usersRes) {
+        setUsers(usersRes);
       }
-      if (auditRes.status === 'fulfilled') {
-        setAuditLogs(auditRes.value);
+      if (auditRes) {
+        setAuditLogs(auditRes);
       }
+
+      const combinedError = statsError || groupsError || usersError;
+      if (combinedError) {
+        setDataError(combinedError);
+        console.error('[Admin Dashboard] Encountered Firestore errors during load:', combinedError);
+      } else {
+        console.log('[Admin Dashboard] Full data sync completed successfully.');
+      }
+    } catch (err: any) {
+      console.error('[Admin Dashboard] Unexpected exception in loadDashboardData:', err);
+      setDataError(err.message || 'Failed to query Firestore database.');
     } finally {
       setLoadingData(false);
     }
@@ -94,10 +124,9 @@ export const AdminLayout: React.FC = () => {
         return;
       }
 
-      // User exists -> verify admin authorization server-side
+      // User exists -> verify admin authorization
       try {
-        const token = await user.getIdToken();
-        const res = await adminApi.verifyAdmin(token);
+        const res = await adminApi.verifyAdmin();
         if (res.authorized) {
           setAuthState('authorized');
           setAdminEmail(user.email);
@@ -107,7 +136,7 @@ export const AdminLayout: React.FC = () => {
             window.history.replaceState({}, '', '/admin');
             setCurrentTab('overview');
           }
-          loadDashboardData(token);
+          loadDashboardData();
         } else {
           setAuthState('unauthorized');
           setAttemptedEmail(user.email);
@@ -181,6 +210,9 @@ export const AdminLayout: React.FC = () => {
             animation: 'spin 0.6s linear infinite',
           }}
         />
+        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
+          Verifying administrator credentials...
+        </div>
       </div>
     );
   }
@@ -337,6 +369,8 @@ export const AdminLayout: React.FC = () => {
             system={system}
             auditLogs={auditLogs}
             loading={loadingData}
+            error={dataError}
+            onRetry={loadDashboardData}
             onNavigateTab={handleTabChange}
           />
         )}
@@ -345,7 +379,8 @@ export const AdminLayout: React.FC = () => {
           <AdminGroupsTab
             groups={groups}
             loading={loadingData}
-            onRefresh={() => loadDashboardData()}
+            error={dataError}
+            onRefresh={loadDashboardData}
           />
         )}
 
@@ -353,7 +388,8 @@ export const AdminLayout: React.FC = () => {
           <AdminUsersTab
             users={users}
             loading={loadingData}
-            onRefresh={() => loadDashboardData()}
+            error={dataError}
+            onRefresh={loadDashboardData}
           />
         )}
 
@@ -372,7 +408,7 @@ export const AdminLayout: React.FC = () => {
           <AdminAuditTab
             logs={auditLogs}
             loading={loadingData}
-            onRefresh={() => loadDashboardData()}
+            onRefresh={loadDashboardData}
           />
         )}
       </div>

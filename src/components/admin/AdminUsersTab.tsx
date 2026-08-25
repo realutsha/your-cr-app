@@ -4,10 +4,11 @@ import type { AdminUserItem } from '../../lib/adminApi';
 interface AdminUsersTabProps {
   users: AdminUserItem[];
   loading: boolean;
+  error?: string | null;
   onRefresh: () => void;
 }
 
-export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, onRefresh }) => {
+export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, error, onRefresh }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -131,6 +132,13 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, on
                 <tr>
                   <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
                     Loading users list...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#FCA5A5' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Error loading users</div>
+                    <div style={{ fontSize: 12 }}>{error}</div>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (

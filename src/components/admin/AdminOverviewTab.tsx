@@ -6,6 +6,8 @@ interface AdminOverviewTabProps {
   system: AdminSystemConfig | null;
   auditLogs: AdminAuditLogItem[];
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onNavigateTab: (tab: 'groups' | 'users' | 'settings' | 'audit') => void;
 }
 
@@ -14,6 +16,8 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
   system,
   auditLogs,
   loading,
+  error,
+  onRetry,
   onNavigateTab,
 }) => {
   const isMaintenance = system?.isShutdown;
@@ -21,6 +25,47 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Error Banner */}
+      {error && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: 14,
+            padding: '16px 20px',
+            color: '#FCA5A5',
+            fontSize: 13.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 14,
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>⚠️ Firestore Query Error</div>
+            <div>{error}</div>
+          </div>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              style={{
+                background: '#EF4444',
+                border: 'none',
+                color: '#FFFFFF',
+                padding: '8px 14px',
+                borderRadius: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Retry Query
+            </button>
+          )}
+        </div>
+      )}
+
       {/* System Status Banner */}
       <div
         style={{
@@ -104,37 +149,37 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
       >
         <MetricCard
           title="Total Groups / Classes"
-          value={loading ? '...' : String(stats?.totalGroups ?? 0)}
+          value={loading ? 'Loading...' : stats ? String(stats.totalGroups) : '—'}
           icon="🏫"
           onClick={() => onNavigateTab('groups')}
         />
         <MetricCard
           title="Total Registered Users"
-          value={loading ? '...' : String(stats?.totalUsers ?? 0)}
+          value={loading ? 'Loading...' : stats ? String(stats.totalUsers) : '—'}
           icon="👥"
           onClick={() => onNavigateTab('users')}
         />
         <MetricCard
           title="Total Class Members"
-          value={loading ? '...' : String(stats?.totalMembers ?? 0)}
+          value={loading ? 'Loading...' : stats ? String(stats.totalMembers) : '—'}
           icon="🎓"
           onClick={() => onNavigateTab('groups')}
         />
         <MetricCard
           title="Total Class Representatives"
-          value={loading ? '...' : String(stats?.totalCRs ?? 0)}
+          value={loading ? 'Loading...' : stats ? String(stats.totalCRs) : '—'}
           icon="🎖️"
           onClick={() => onNavigateTab('users')}
         />
         <MetricCard
           title="Total Hosts"
-          value={loading ? '...' : String(stats?.totalHosts ?? 0)}
+          value={loading ? 'Loading...' : stats ? String(stats.totalHosts) : '—'}
           icon="👑"
           onClick={() => onNavigateTab('groups')}
         />
         <MetricCard
           title="Application Status"
-          value={loading ? '...' : stats?.appStatus || 'ONLINE'}
+          value={loading ? 'Loading...' : stats?.appStatus || 'ONLINE'}
           icon="⚡"
           valueColor={isMaintenance ? '#EF4444' : isScheduled ? '#F59E0B' : '#10B981'}
           onClick={() => onNavigateTab('settings')}
