@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { auth, firebaseSignOut } from '../../lib/firebase';
+import { auth, onAuthStateChanged, firebaseSignOut } from '../../lib/firebase';
 import { adminApi, type AdminStats, type AdminSystemConfig, type AdminGroupItem, type AdminUserItem, type AdminAuditLogItem } from '../../lib/adminApi';
 import { AdminLogin } from './AdminLogin';
 import { AdminOverviewTab } from './AdminOverviewTab';
@@ -10,11 +10,12 @@ import { AdminAuditTab } from './AdminAuditTab';
 import { Toast } from '../common/Toast';
 
 type AdminTab = 'overview' | 'groups' | 'users' | 'settings' | 'audit';
+type AuthState = 'checking' | 'unauthenticated' | 'authorized' | 'unauthorized';
 
 export const AdminLayout: React.FC = () => {
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [authState, setAuthState] = useState<AuthState>('checking');
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
-  const [isAccessDenied, setIsAccessDenied] = useState<boolean>(false);
+  const [attemptedEmail, setAttemptedEmail] = useState<string | null>(null);
 
   const getInitialTab = (): AdminTab => {
     if (typeof window !== 'undefined') {
@@ -34,7 +35,7 @@ export const AdminLayout: React.FC = () => {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -42,14 +43,14 @@ export const AdminLayout: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const loadDashboardData = useCallback(async () => {
-    setLoading(true);
+  const loadDashboardData = useCallback(async (token?: string) => {
+    setLoadingData(true);
     try {
       const [statsRes, groupsRes, usersRes, auditRes] = await Promise.allSettled([
-        adminApi.getStats(),
-        adminApi.getGroups(),
-        adminApi.getUsers(),
-        adminApi.getAuditLogs(),
+        adminApi.getStats(token),
+        adminApi.getGroups(token),
+        adminApi.getUsers(token),
+        adminApi.getAuditLogs(token),
       ]);
 
       if (statsRes.status === 'fulfilled') {
@@ -66,49 +67,59 @@ export const AdminLayout: React.FC = () => {
         setAuditLogs(auditRes.value);
       }
     } finally {
-      setLoading(false);
+      setLoadingData(false);
     }
   }, []);
 
-  const checkAuth = useCallback(async () => {
-    if (!auth?.currentUser) {
-      setAuthorized(false);
-      setLoading(false);
-      // If user visited a protected admin path directly while unauthenticated, ensure URL is /admin/login
-      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
-        window.history.replaceState({}, '', '/admin/login');
-      }
+  // Subscribe to Firebase Auth state changes
+  useEffect(() => {
+    if (!auth) {
+      setAuthState('unauthenticated');
       return;
     }
 
-    try {
-      const res = await adminApi.verifyAdmin();
-      if (res.authorized) {
-        setAuthorized(true);
-        setIsAccessDenied(false);
-        setAdminEmail(res.email || auth.currentUser.email);
-        
-        // If user logged in from /admin/login, redirect URL to /admin
-        if (typeof window !== 'undefined' && window.location.pathname === '/admin/login') {
-          window.history.replaceState({}, '', '/admin');
-          setCurrentTab('overview');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setAuthState('unauthenticated');
+        setAdminEmail(null);
+        setAttemptedEmail(null);
+        // If on a protected route while logged out, redirect URL to /admin/login
+        if (
+          typeof window !== 'undefined' &&
+          window.location.pathname.startsWith('/admin') &&
+          window.location.pathname !== '/admin/login'
+        ) {
+          window.history.replaceState({}, '', '/admin/login');
         }
-        loadDashboardData();
-      } else {
-        setAuthorized(false);
-        setIsAccessDenied(true);
+        return;
       }
-    } catch {
-      setAuthorized(false);
-      setIsAccessDenied(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDashboardData]);
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+      // User exists -> verify admin authorization server-side
+      try {
+        const token = await user.getIdToken();
+        const res = await adminApi.verifyAdmin(token);
+        if (res.authorized) {
+          setAuthState('authorized');
+          setAdminEmail(user.email);
+          setAttemptedEmail(null);
+          // If was on /admin/login, redirect URL to /admin
+          if (typeof window !== 'undefined' && window.location.pathname === '/admin/login') {
+            window.history.replaceState({}, '', '/admin');
+            setCurrentTab('overview');
+          }
+          loadDashboardData(token);
+        } else {
+          setAuthState('unauthorized');
+          setAttemptedEmail(user.email);
+        }
+      } catch {
+        setAuthState('unauthorized');
+        setAttemptedEmail(user.email);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [loadDashboardData]);
 
   // Sync tab with URL on popstate
   useEffect(() => {
@@ -131,13 +142,13 @@ export const AdminLayout: React.FC = () => {
     if (auth) {
       await firebaseSignOut(auth).catch(() => {});
     }
-    setAuthorized(false);
+    setAuthState('unauthenticated');
     setAdminEmail(null);
-    setIsAccessDenied(false);
+    setAttemptedEmail(null);
     if (typeof window !== 'undefined' && window.history) {
       window.history.pushState({}, '', '/admin/login');
     }
-    showToast('Signed out of admin dashboard');
+    showToast('Signed out of Admin Portal');
   };
 
   const handleGoToApp = () => {
@@ -146,20 +157,54 @@ export const AdminLayout: React.FC = () => {
     }
   };
 
-  // If unauthenticated, unauthorized, or currently on /admin/login -> Render Admin Login Page
+  // 1. Initial Loading State: explicit spinner, NO error text
+  if (authState === 'checking') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#0B0D14',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            border: '2px solid rgba(255,255,255,0.15)',
+            borderTopColor: '#818CF8',
+            animation: 'spin 0.6s linear infinite',
+          }}
+        />
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated state OR directly on /admin/login OR unauthorized account
   const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/admin/login';
-  if (isLoginPage || authorized === false || (!loading && !authorized)) {
+  if (authState === 'unauthenticated' || authState === 'unauthorized' || isLoginPage) {
     return (
       <AdminLogin
         onSuccess={() => {
-          checkAuth();
+          // Handled by onAuthStateChanged subscription
         }}
         onGoToApp={handleGoToApp}
-        isAccessDeniedInitial={isAccessDenied}
+        isAccessDenied={authState === 'unauthorized'}
+        attemptedEmail={attemptedEmail}
+        onResetAuth={() => {
+          setAuthState('unauthenticated');
+          setAttemptedEmail(null);
+        }}
       />
     );
   }
 
+  // 3. Authorized Admin Dashboard
   return (
     <div
       style={{
@@ -291,7 +336,7 @@ export const AdminLayout: React.FC = () => {
             stats={stats}
             system={system}
             auditLogs={auditLogs}
-            loading={loading}
+            loading={loadingData}
             onNavigateTab={handleTabChange}
           />
         )}
@@ -299,16 +344,16 @@ export const AdminLayout: React.FC = () => {
         {currentTab === 'groups' && (
           <AdminGroupsTab
             groups={groups}
-            loading={loading}
-            onRefresh={loadDashboardData}
+            loading={loadingData}
+            onRefresh={() => loadDashboardData()}
           />
         )}
 
         {currentTab === 'users' && (
           <AdminUsersTab
             users={users}
-            loading={loading}
-            onRefresh={loadDashboardData}
+            loading={loadingData}
+            onRefresh={() => loadDashboardData()}
           />
         )}
 
@@ -326,8 +371,8 @@ export const AdminLayout: React.FC = () => {
         {currentTab === 'audit' && (
           <AdminAuditTab
             logs={auditLogs}
-            loading={loading}
-            onRefresh={loadDashboardData}
+            loading={loadingData}
+            onRefresh={() => loadDashboardData()}
           />
         )}
       </div>

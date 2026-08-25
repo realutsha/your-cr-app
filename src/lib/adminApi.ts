@@ -58,12 +58,11 @@ export interface AdminAuditLogItem {
   timestamp: string;
 }
 
-async function getAdminHeaders(): Promise<HeadersInit> {
-  const currentUser = auth?.currentUser;
-  if (!currentUser) {
+async function getAdminHeaders(overrideToken?: string): Promise<HeadersInit> {
+  const token = overrideToken || (auth?.currentUser ? await auth.currentUser.getIdToken(true) : null);
+  if (!token) {
     throw new Error('Not authenticated.');
   }
-  const token = await currentUser.getIdToken(true);
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
@@ -71,9 +70,9 @@ async function getAdminHeaders(): Promise<HeadersInit> {
 }
 
 export const adminApi = {
-  async verifyAdmin(): Promise<{ authorized: boolean; email?: string; error?: string }> {
+  async verifyAdmin(token?: string): Promise<{ authorized: boolean; email?: string; error?: string }> {
     try {
-      const headers = await getAdminHeaders();
+      const headers = await getAdminHeaders(token);
       const res = await fetch('/api/admin/verify', { headers });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -86,8 +85,8 @@ export const adminApi = {
     }
   },
 
-  async getStats(): Promise<{ stats: AdminStats; system: AdminSystemConfig }> {
-    const headers = await getAdminHeaders();
+  async getStats(token?: string): Promise<{ stats: AdminStats; system: AdminSystemConfig }> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch('/api/admin/stats', { headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -97,8 +96,8 @@ export const adminApi = {
     return { stats: data.stats, system: data.system };
   },
 
-  async getGroups(): Promise<AdminGroupItem[]> {
-    const headers = await getAdminHeaders();
+  async getGroups(token?: string): Promise<AdminGroupItem[]> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch('/api/admin/groups', { headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -108,8 +107,8 @@ export const adminApi = {
     return data.groups || [];
   },
 
-  async getGroupDetails(groupId: string): Promise<{ group: AdminGroupItem; members: any[] }> {
-    const headers = await getAdminHeaders();
+  async getGroupDetails(groupId: string, token?: string): Promise<{ group: AdminGroupItem; members: any[] }> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch(`/api/admin/groups?id=${encodeURIComponent(groupId)}`, { headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -119,8 +118,8 @@ export const adminApi = {
     return { group: data.group, members: data.members || [] };
   },
 
-  async getUsers(): Promise<AdminUserItem[]> {
-    const headers = await getAdminHeaders();
+  async getUsers(token?: string): Promise<AdminUserItem[]> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch('/api/admin/users', { headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -130,8 +129,8 @@ export const adminApi = {
     return data.users || [];
   },
 
-  async getSystemStatus(): Promise<AdminSystemConfig> {
-    const headers = await getAdminHeaders();
+  async getSystemStatus(token?: string): Promise<AdminSystemConfig> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch('/api/admin/system', { headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -141,15 +140,18 @@ export const adminApi = {
     return data.config;
   },
 
-  async updateSystemStatus(payload: {
-    isShutdown: boolean;
-    shutdownMessage: string;
-    scheduledStart: string | null;
-    scheduledEnd: string | null;
-    actionType?: string;
-    notes?: string;
-  }): Promise<AdminSystemConfig> {
-    const headers = await getAdminHeaders();
+  async updateSystemStatus(
+    payload: {
+      isShutdown: boolean;
+      shutdownMessage: string;
+      scheduledStart: string | null;
+      scheduledEnd: string | null;
+      actionType?: string;
+      notes?: string;
+    },
+    token?: string
+  ): Promise<AdminSystemConfig> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch('/api/admin/system', {
       method: 'POST',
       headers,
@@ -163,8 +165,8 @@ export const adminApi = {
     return data.config;
   },
 
-  async getAuditLogs(): Promise<AdminAuditLogItem[]> {
-    const headers = await getAdminHeaders();
+  async getAuditLogs(token?: string): Promise<AdminAuditLogItem[]> {
+    const headers = await getAdminHeaders(token);
     const res = await fetch('/api/admin/audit', { headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
