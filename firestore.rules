@@ -6,14 +6,15 @@ service cloud.firestore {
     function isDiuUser() {
       return request.auth != null &&
              request.auth.token.email_verified == true &&
+             request.auth.token.email != null &&
              request.auth.token.email.matches('(?i)^[a-zA-Z0-9._%+-]+@diu[.]edu[.]bd$');
     }
 
-    // Secure administrator verification
+    // Secure administrator verification (Custom claim admin == true or authorized admin email)
     function isAdmin() {
       return request.auth != null && (
         request.auth.token.admin == true ||
-        request.auth.token.email.lower() == 'madhurzamutsha@gmail.com'
+        (request.auth.token.email != null && request.auth.token.email.matches('(?i)^madhurzamutsha@gmail[.]com$'))
       );
     }
     
@@ -38,13 +39,13 @@ service cloud.firestore {
       allow read: if isDiuUser() || isAdmin();
       // On create: must be verified DIU user matching UID and authenticated email
       allow create: if isOwner(userId) && 
-                       request.resource.data.email.lower() == request.auth.token.email.lower() &&
+                       request.resource.data.email == request.auth.token.email &&
                        (request.resource.data.role == 'student' || request.resource.data.role == null);
       // On update: user can update own profile (role cannot be arbitrarily set to CR without hosting a group)
       // or group host can clear current_group_id upon group deletion/member removal
       allow update: if (isDiuUser() || isAdmin()) && (
         (isOwner(userId) && 
-         request.resource.data.email.lower() == resource.data.email.lower() &&
+         request.resource.data.email == resource.data.email &&
          (request.resource.data.role == resource.data.role ||
           request.resource.data.role == 'student' ||
           (request.resource.data.role == 'cr' &&
@@ -53,14 +54,14 @@ service cloud.firestore {
         (resource.data.current_group_id != null &&
          isGroupHost(resource.data.current_group_id) &&
          request.resource.data.current_group_id == null &&
-         request.resource.data.email.lower() == resource.data.email.lower())
+         request.resource.data.email == resource.data.email)
       );
       allow delete: if false; // Permanent identity preservation
     }
 
     // 2. GROUPS COLLECTION
     match /groups/{groupId} {
-      // Readable by all DIU users to allow joining via 6-character code lookup
+      // Readable by all DIU users to allow joining via 6-character code lookup, or by admin
       allow read: if isDiuUser() || isAdmin();
       // Only verified DIU users can create a new group as host
       allow create: if (isDiuUser() || isAdmin()) && 
@@ -72,10 +73,10 @@ service cloud.firestore {
     // 3. GROUP MEMBERS COLLECTION
     match /groupMembers/{memberId} {
       // Scoped read: member can read their own record or members of the group, or admin
-      allow read: if (isDiuUser() && (
+      allow read: if isAdmin() || (isDiuUser() && (
         resource.data.user_id == request.auth.uid ||
         isGroupMember(resource.data.group_id)
-      )) || isAdmin();
+      ));
       // Students can add themselves on auto-approval, or CR host can add approved members
       allow create: if (isDiuUser() || isAdmin()) && (
         (request.resource.data.user_id == request.auth.uid && memberId == request.resource.data.group_id + '_' + request.auth.uid) ||
@@ -90,10 +91,10 @@ service cloud.firestore {
 
     // 4. JOIN REQUESTS COLLECTION
     match /joinRequests/{requestId} {
-      allow read: if (isDiuUser() && (
+      allow read: if isAdmin() || (isDiuUser() && (
         resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
-      )) || isAdmin();
+      ));
       allow create: if isDiuUser() && 
                        request.resource.data.user_id == request.auth.uid;
       allow update: if isGroupHost(resource.data.group_id);
@@ -105,8 +106,8 @@ service cloud.firestore {
 
     // 5. COURSES COLLECTION
     match /courses/{courseId} {
-      // Scoped read: only group members can see courses for their class
-      allow read: if (isDiuUser() && isGroupMember(resource.data.group_id)) || isAdmin();
+      // Scoped read: only group members can see courses for their class, or admin
+      allow read: if isAdmin() || (isDiuUser() && isGroupMember(resource.data.group_id));
       allow create: if isDiuUser() && isGroupHost(request.resource.data.group_id);
       allow update: if isDiuUser() && isGroupHost(resource.data.group_id);
       allow delete: if isDiuUser() && isGroupHost(resource.data.group_id);
@@ -114,8 +115,8 @@ service cloud.firestore {
 
     // 6. ACADEMIC UPDATES COLLECTION (Quiz, Lab, Presentation, Assignment)
     match /updates/{updateId} {
-      // Scoped read: only group members can see academic notices for their class
-      allow read: if (isDiuUser() && isGroupMember(resource.data.group_id)) || isAdmin();
+      // Scoped read: only group members can see academic notices for their class, or admin
+      allow read: if isAdmin() || (isDiuUser() && isGroupMember(resource.data.group_id));
       // Strictly only the CR host can post, edit, or delete updates
       allow create: if isDiuUser() && isGroupHost(request.resource.data.group_id);
       allow update: if isDiuUser() && isGroupHost(resource.data.group_id);
@@ -124,17 +125,17 @@ service cloud.firestore {
 
     // 7. UPDATE VIEWS (Read Receipts)
     match /updateViews/{viewId} {
-      // View receipts only readable by the student who viewed or the CR host
-      allow read: if (isDiuUser() && (
+      // View receipts only readable by the student who viewed or the CR host, or admin
+      allow read: if isAdmin() || (isDiuUser() && (
         resource.data.user_id == request.auth.uid ||
         isGroupHost(resource.data.group_id)
-      )) || isAdmin();
+      ));
       // Students can only create their own view record within their joined group
       allow create: if isDiuUser() && 
                        request.resource.data.user_id == request.auth.uid &&
                        isGroupMember(request.resource.data.group_id);
       allow update: if false;
-      allow delete: if isDiuUser() && (
+      allow delete: if (isDiuUser() || isAdmin()) && (
         resource.data.user_id == request.auth.uid ||
         isGroupHost(resource.data.group_id)
       );
@@ -163,5 +164,3 @@ service cloud.firestore {
     }
   }
 }
-
-

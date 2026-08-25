@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { auth, googleProvider, signInWithPopup, signInWithRedirect, firebaseSignOut } from '../../lib/firebase';
+import { auth, adminGoogleProvider, signInWithPopup, signInWithRedirect, firebaseSignOut } from '../../lib/firebase';
 
 interface AdminLoginProps {
   onSuccess: () => void;
@@ -31,11 +31,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
 
     try {
       if (useRedirect) {
-        await signInWithRedirect(auth, googleProvider);
+        await signInWithRedirect(auth, adminGoogleProvider);
         return;
       }
 
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(auth, adminGoogleProvider);
       // On success, onAuthStateChanged in AdminLayout will handle verification and routing
       setLoading(false);
       onSuccess();

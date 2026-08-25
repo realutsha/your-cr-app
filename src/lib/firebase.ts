@@ -103,6 +103,12 @@ googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
 
+// Dedicated Admin Google Auth Provider without domain restriction
+export const adminGoogleProvider = new GoogleAuthProvider();
+adminGoogleProvider.setCustomParameters({
+  prompt: 'select_account',
+});
+
 let messagingPromise: Promise<Messaging | null> | null = null;
 
 export async function getFirebaseMessaging(): Promise<Messaging | null> {
