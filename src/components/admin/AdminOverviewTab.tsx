@@ -42,7 +42,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           }}
         >
           <div>
-            <div style={{ fontWeight: 700, marginBottom: 2 }}>⚠️ Firestore Query Error</div>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>⚠️ Dashboard Query Error</div>
             <div>{error}</div>
           </div>
           {onRetry && (

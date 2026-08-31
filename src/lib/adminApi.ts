@@ -1,4 +1,4 @@
-import { auth } from './firebase';
+import { auth, onAuthStateChanged, type FirebaseUser } from './firebase';
 
 export const AUTHORIZED_ADMIN_EMAILS = ['madhurzamutsha@gmail.com'];
 
@@ -61,21 +61,56 @@ export interface AdminAuditLogItem {
 }
 
 /**
- * Helper: get the current user's Firebase ID token for server-side API calls.
+ * Helper: wait for Firebase Auth to finish resolving initial session,
+ * and return the authenticated user (or null).
  */
-async function getIdToken(): Promise<string> {
-  if (!auth?.currentUser) {
+export async function getAuthenticatedAdminUser(): Promise<FirebaseUser | null> {
+  if (!auth) return null;
+  if (auth.currentUser) return auth.currentUser;
+
+  try {
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady();
+      if (auth.currentUser) return auth.currentUser;
+    }
+  } catch (err) {
+    console.warn('[Admin Auth] authStateReady error:', err);
+  }
+
+  const authInstance = auth;
+  // Fallback: wait on onAuthStateChanged with a 4s timeout
+  return new Promise<FirebaseUser | null>((resolve) => {
+    const timer = setTimeout(() => {
+      resolve(authInstance.currentUser || null);
+    }, 4000);
+
+    const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(user);
+    });
+  });
+}
+
+/**
+ * Helper: get the current user's Firebase ID token for server-side API calls.
+ * Waits for auth initialization to eliminate race conditions.
+ */
+async function getIdToken(forceRefresh = false): Promise<string> {
+  const user = await getAuthenticatedAdminUser();
+  if (!user) {
     throw new Error('Not authenticated. Please sign in.');
   }
-  return auth.currentUser.getIdToken(/* forceRefresh */ false);
+  return user.getIdToken(forceRefresh);
 }
 
 /**
  * Helper: make an authenticated fetch request to a server-side admin API endpoint.
+ * Automatically retries with a refreshed token if a 401 is encountered.
  */
 async function adminFetch(path: string, options?: RequestInit): Promise<any> {
-  const token = await getIdToken();
-  const res = await fetch(path, {
+  let token = await getIdToken(false);
+  let res = await fetch(path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -84,7 +119,24 @@ async function adminFetch(path: string, options?: RequestInit): Promise<any> {
     },
   });
 
-  const data = await res.json();
+  // If unauthorized (e.g. token expired), attempt one retry with force refresh
+  if (res.status === 401) {
+    try {
+      token = await getIdToken(true);
+      res = await fetch(path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...(options?.headers || {}),
+        },
+      });
+    } catch {
+      // Continue to error parsing below
+    }
+  }
+
+  const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     const errMsg = data?.error || `Server responded with status ${res.status}`;
@@ -95,13 +147,13 @@ async function adminFetch(path: string, options?: RequestInit): Promise<any> {
 }
 
 export const adminApi = {
-  async verifyAdmin(): Promise<{ authorized: boolean; email?: string; error?: string }> {
-    if (!auth?.currentUser) {
-      return { authorized: false, error: 'Not authenticated.' };
+  async verifyAdmin(explicitUser?: FirebaseUser | null): Promise<{ authorized: boolean; email?: string; error?: string }> {
+    const user = explicitUser || (await getAuthenticatedAdminUser());
+    if (!user) {
+      return { authorized: false, error: 'Not authenticated. Please sign in.' };
     }
 
     try {
-      const user = auth.currentUser;
       const email = (user.email || '').toLowerCase().trim();
       let hasAdminClaim = false;
 
@@ -137,17 +189,17 @@ export const adminApi = {
     const data = await adminFetch('/api/admin/stats');
 
     console.log(
-      `[Admin Dashboard] Stats received: ${data.stats.totalGroups} groups, ${data.stats.totalUsers} users, ${data.stats.totalMembers} members.`
+      `[Admin Dashboard] Stats received: ${data.stats?.totalGroups} groups, ${data.stats?.totalUsers} users, ${data.stats?.totalMembers} members.`
     );
 
     return {
       stats: {
-        totalGroups: data.stats.totalGroups ?? 0,
-        totalUsers: data.stats.totalUsers ?? 0,
-        totalMembers: data.stats.totalMembers ?? 0,
-        totalCRs: data.stats.totalCRs ?? 0,
-        totalHosts: data.stats.totalHosts ?? 0,
-        appStatus: data.stats.appStatus || 'ONLINE',
+        totalGroups: data.stats?.totalGroups ?? 0,
+        totalUsers: data.stats?.totalUsers ?? 0,
+        totalMembers: data.stats?.totalMembers ?? 0,
+        totalCRs: data.stats?.totalCRs ?? 0,
+        totalHosts: data.stats?.totalHosts ?? 0,
+        appStatus: data.stats?.appStatus || 'ONLINE',
       },
       system: {
         isShutdown: Boolean(data.system?.isShutdown),

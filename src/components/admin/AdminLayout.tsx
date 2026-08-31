@@ -48,29 +48,28 @@ export const AdminLayout: React.FC = () => {
     setLoadingData(true);
     setDataError(null);
 
-    console.log('[Admin Dashboard] Beginning full data sync from Firestore...');
+    console.log('[Admin Dashboard] Beginning full data sync from API...');
 
     let statsError: string | null = null;
     let groupsError: string | null = null;
     let usersError: string | null = null;
 
     try {
-      const statsRes = await adminApi.getStats().catch((err) => {
-        statsError = err.message || String(err);
-        return null;
-      });
-
-      const groupsRes = await adminApi.getGroups().catch((err) => {
-        groupsError = err.message || String(err);
-        return null;
-      });
-
-      const usersRes = await adminApi.getUsers().catch((err) => {
-        usersError = err.message || String(err);
-        return null;
-      });
-
-      const auditRes = await adminApi.getAuditLogs().catch(() => []);
+      const [statsRes, groupsRes, usersRes, auditRes] = await Promise.all([
+        adminApi.getStats().catch((err) => {
+          statsError = err.message || String(err);
+          return null;
+        }),
+        adminApi.getGroups().catch((err) => {
+          groupsError = err.message || String(err);
+          return null;
+        }),
+        adminApi.getUsers().catch((err) => {
+          usersError = err.message || String(err);
+          return null;
+        }),
+        adminApi.getAuditLogs().catch(() => []),
+      ]);
 
       if (statsRes) {
         setStats(statsRes.stats);
@@ -89,13 +88,13 @@ export const AdminLayout: React.FC = () => {
       const combinedError = statsError || groupsError || usersError;
       if (combinedError) {
         setDataError(combinedError);
-        console.error('[Admin Dashboard] Encountered Firestore errors during load:', combinedError);
+        console.error('[Admin Dashboard] Encountered errors during load:', combinedError);
       } else {
         console.log('[Admin Dashboard] Full data sync completed successfully.');
       }
     } catch (err: any) {
       console.error('[Admin Dashboard] Unexpected exception in loadDashboardData:', err);
-      setDataError(err.message || 'Failed to query Firestore database.');
+      setDataError(err.message || 'Failed to sync admin data.');
     } finally {
       setLoadingData(false);
     }
@@ -108,7 +107,11 @@ export const AdminLayout: React.FC = () => {
       return;
     }
 
+    let isMounted = true;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!isMounted) return;
+
       if (!user) {
         setAuthState('unauthenticated');
         setAdminEmail(null);
@@ -124,9 +127,11 @@ export const AdminLayout: React.FC = () => {
         return;
       }
 
-      // User exists -> verify admin authorization
+      // User exists -> verify admin authorization with resolved user object
       try {
-        const res = await adminApi.verifyAdmin();
+        const res = await adminApi.verifyAdmin(user);
+        if (!isMounted) return;
+
         if (res.authorized) {
           setAuthState('authorized');
           setAdminEmail(user.email);
@@ -142,12 +147,16 @@ export const AdminLayout: React.FC = () => {
           setAttemptedEmail(user.email);
         }
       } catch {
+        if (!isMounted) return;
         setAuthState('unauthorized');
         setAttemptedEmail(user.email);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [loadDashboardData]);
 
   // Sync tab with URL on popstate
