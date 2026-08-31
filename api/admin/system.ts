@@ -1,3 +1,4 @@
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { handleCors, verifyAdminRequest, parseFirestoreDoc, encodeFirestoreValue } from '../_adminAuth';
 
 export const config = {
@@ -7,18 +8,39 @@ export const config = {
 export default async function handler(req: any, res: any) {
   if (handleCors(req, res)) return;
 
-  const admin = await verifyAdminRequest(req, res);
-  if (!admin) return;
+  try {
+    const admin = await verifyAdminRequest(req, res);
+    if (!admin) return;
 
-  const { projectId, idToken, email } = admin;
-  const firestoreBase = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-  const headers = {
-    Authorization: `Bearer ${idToken}`,
-    'Content-Type': 'application/json',
-  };
+    const { projectId, idToken, email, adminApp } = admin;
 
-  if (req.method === 'GET') {
-    try {
+    // GET Request: Retrieve system operational configuration
+    if (req.method === 'GET') {
+      if (adminApp) {
+        const db = getFirestore(adminApp);
+        const configDoc = await db.doc('appConfig/system').get();
+        const data = configDoc.exists ? configDoc.data() : null;
+
+        return res.status(200).json({
+          success: true,
+          config: data || {
+            isShutdown: false,
+            shutdownMessage: 'Class Mate is temporarily unavailable due to maintenance. Please try again later.',
+            scheduledStart: null,
+            scheduledEnd: null,
+            updatedAt: new Date().toISOString(),
+            updatedBy: email,
+          },
+        });
+      }
+
+      // REST API fallback
+      const firestoreBase = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+      const headers = {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      };
+
       const configRes = await fetch(`${firestoreBase}/appConfig/system`, { headers });
       if (!configRes.ok) {
         return res.status(200).json({
@@ -33,18 +55,16 @@ export default async function handler(req: any, res: any) {
           },
         });
       }
+
       const data = parseFirestoreDoc(await configRes.json());
       return res.status(200).json({ success: true, config: data });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message || 'Failed to get system status.' });
     }
-  }
 
-  if (req.method === 'POST') {
-    const { isShutdown, shutdownMessage, scheduledStart, scheduledEnd, actionType, notes } = req.body || {};
-
-    try {
+    // POST Request: Update system status and record audit log
+    if (req.method === 'POST') {
+      const { isShutdown, shutdownMessage, scheduledStart, scheduledEnd, actionType, notes } = req.body || {};
       const now = new Date().toISOString();
+
       const updatedFields: Record<string, any> = {
         isShutdown: Boolean(isShutdown),
         shutdownMessage: shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance. Please try again later.',
@@ -54,12 +74,44 @@ export default async function handler(req: any, res: any) {
         updatedBy: email,
       };
 
+      if (adminApp) {
+        const db = getFirestore(adminApp);
+
+        // 1. Update appConfig/system
+        await db.doc('appConfig/system').set(updatedFields, { merge: true });
+
+        // 2. Write Audit Log
+        const auditLogId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        await db.collection('adminAuditLogs').doc(auditLogId).set({
+          id: auditLogId,
+          performedBy: email,
+          action: actionType || (isShutdown ? 'SHUTDOWN_APP' : 'RESTART_APP'),
+          details: notes || `System status set to ${isShutdown ? 'OFFLINE (Maintenance)' : 'ONLINE'}`,
+          isShutdown: Boolean(isShutdown),
+          scheduledStart: scheduledStart || null,
+          scheduledEnd: scheduledEnd || null,
+          timestamp: FieldValue.serverTimestamp(),
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: 'Application operational status updated successfully.',
+          config: updatedFields,
+        });
+      }
+
+      // REST API fallback
+      const firestoreBase = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+      const headers = {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      };
+
       const firestoreDocFields: Record<string, any> = {};
       for (const [k, v] of Object.entries(updatedFields)) {
         firestoreDocFields[k] = encodeFirestoreValue(v);
       }
 
-      // Write appConfig/system
       const patchRes = await fetch(`${firestoreBase}/appConfig/system`, {
         method: 'PATCH',
         headers,
@@ -71,7 +123,6 @@ export default async function handler(req: any, res: any) {
         return res.status(500).json({ error: `Failed to update system config: ${errText}` });
       }
 
-      // Write Audit Log
       const auditLogId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const auditLogDoc = {
         fields: {
@@ -90,17 +141,22 @@ export default async function handler(req: any, res: any) {
         method: 'PATCH',
         headers,
         body: JSON.stringify(auditLogDoc),
-      }).catch((e) => console.warn('Could not write audit log:', e));
+      }).catch((e) => console.warn('Could not write audit log via REST:', e));
 
       return res.status(200).json({
         success: true,
         message: 'Application operational status updated successfully.',
         config: updatedFields,
       });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message || 'Failed to update system status.' });
     }
-  }
 
-  return res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
+    return res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
+  } catch (err: any) {
+    console.error('[Admin API: system] Handler exception:', err);
+    return res.status(500).json({
+      error: err.message || 'Failed to process system status request.',
+      code: err.code || 'SYSTEM_ERROR',
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
 }
