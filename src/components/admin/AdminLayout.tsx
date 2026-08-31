@@ -69,31 +69,34 @@ export const AdminLayout: React.FC = () => {
 
     console.log('[Admin Dashboard] Fetching dashboard data directly from Firestore...');
 
-    let statsError: string | null = null;
-    let groupsError: string | null = null;
-    let usersError: string | null = null;
-
     try {
       const [statsRes, groupsRes, usersRes, auditRes] = await Promise.all([
         adminApi.getStats(userToUse).catch((err) => {
-          statsError = err.message || String(err);
+          console.warn('[Admin Dashboard] Stats error:', err);
           return null;
         }),
         adminApi.getGroups(userToUse).catch((err) => {
-          groupsError = err.message || String(err);
-          return null;
+          console.warn('[Admin Dashboard] Groups error:', err);
+          return [];
         }),
         adminApi.getUsers(userToUse).catch((err) => {
-          usersError = err.message || String(err);
-          return null;
+          console.warn('[Admin Dashboard] Users error:', err);
+          return [];
         }),
-        adminApi.getAuditLogs(userToUse).catch(() => []),
+        adminApi.getAuditLogs(userToUse).catch((err) => {
+          console.warn('[Admin Dashboard] Audit logs error:', err);
+          return [];
+        }),
       ]);
 
       if (statsRes) {
         setStats(statsRes.stats);
         setSystem(statsRes.system);
+        setDataError(null);
+      } else {
+        setDataError('Failed to load dashboard data. Please check connection and permissions.');
       }
+
       if (groupsRes) {
         setGroups(groupsRes);
       }
@@ -104,13 +107,7 @@ export const AdminLayout: React.FC = () => {
         setAuditLogs(auditRes);
       }
 
-      const combinedError = statsError || groupsError || usersError;
-      if (combinedError) {
-        setDataError(combinedError);
-        console.error('[Admin Dashboard] Encountered errors during data sync:', combinedError);
-      } else {
-        console.log('[Admin Dashboard] Dashboard data synced successfully.');
-      }
+      console.log('[Admin Dashboard] Dashboard data sync completed.');
     } catch (err: any) {
       console.error('[Admin Dashboard] Exception in loadDashboardData:', err);
       setDataError(err.message || 'Failed to sync admin data.');

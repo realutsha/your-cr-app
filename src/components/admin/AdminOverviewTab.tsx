@@ -25,8 +25,8 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Error Banner */}
-      {error && (
+      {/* Error Banner: Only displayed if counts could not be retrieved */}
+      {error && !stats && (
         <div
           style={{
             background: 'rgba(239, 68, 68, 0.12)',

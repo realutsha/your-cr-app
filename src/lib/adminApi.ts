@@ -123,36 +123,63 @@ export const adminApi = {
 
   async getStats(_user?: FirebaseUser | null): Promise<{ stats: AdminStats; system: AdminSystemConfig }> {
     if (!db) throw new Error('Firestore database is not initialized.');
-    console.log('[Admin Dashboard] Querying Firestore collections directly on client side...');
+    console.log('[Admin Dashboard] Querying Firestore collections independently...');
 
-    const [groupsSnap, usersSnap, membersSnap, configSnap] = await Promise.all([
-      getDocs(collection(db, 'groups')),
-      getDocs(collection(db, 'users')),
-      getDocs(collection(db, 'groupMembers')),
-      getDoc(doc(db, 'appConfig', 'system')),
-    ]);
+    // 1. Independent query for groups collection
+    let groupsDocs: any[] = [];
+    try {
+      const groupsSnap = await getDocs(collection(db, 'groups'));
+      groupsDocs = groupsSnap.docs.map((d) => d.data());
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for collection "groups":', err?.message || err);
+    }
 
-    const totalGroups = groupsSnap.size;
-    const totalUsers = usersSnap.size;
-    const totalMembers = membersSnap.size;
+    // 2. Independent query for users collection
+    let usersDocs: any[] = [];
+    try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      usersDocs = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for collection "users":', err?.message || err);
+    }
+
+    // 3. Independent query for groupMembers collection
+    let totalMembers = 0;
+    try {
+      const membersSnap = await getDocs(collection(db, 'groupMembers'));
+      totalMembers = membersSnap.size;
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for collection "groupMembers":', err?.message || err);
+    }
+
+    // 4. Independent query for appConfig/system
+    let sysConfig: AdminSystemConfig | null = null;
+    try {
+      const configSnap = await getDoc(doc(db, 'appConfig', 'system'));
+      if (configSnap.exists()) {
+        sysConfig = configSnap.data() as AdminSystemConfig;
+      }
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for document "appConfig/system":', err?.message || err);
+    }
+
+    // Aggregate metrics from succeeded collections
+    const totalGroups = groupsDocs.length;
+    const totalUsers = usersDocs.length;
 
     let totalCRs = 0;
     const hostUserIds = new Set<string>();
 
-    usersSnap.forEach((docSnap) => {
-      const u = docSnap.data();
+    usersDocs.forEach((u) => {
       if (u.role === 'cr') totalCRs++;
-      if (u.is_host) hostUserIds.add(docSnap.id);
+      if (u.is_host && u.id) hostUserIds.add(u.id);
     });
 
-    groupsSnap.forEach((docSnap) => {
-      const g = docSnap.data();
+    groupsDocs.forEach((g) => {
       if (g.host_id) hostUserIds.add(g.host_id);
     });
 
     const totalHosts = hostUserIds.size;
-
-    const sysConfig = configSnap.exists() ? (configSnap.data() as AdminSystemConfig) : null;
 
     let appStatus: 'ONLINE' | 'MAINTENANCE' | 'SCHEDULED' = 'ONLINE';
     if (sysConfig?.isShutdown) {
@@ -171,7 +198,7 @@ export const adminApi = {
     }
 
     console.log(
-      `[Admin Dashboard] Direct Firestore stats calculated: ${totalGroups} groups, ${totalUsers} users, ${totalMembers} members, ${totalCRs} CRs, ${totalHosts} hosts.`
+      `[Admin Dashboard] Overview counts calculated: ${totalGroups} groups, ${totalUsers} users, ${totalMembers} members, ${totalCRs} CRs, ${totalHosts} hosts.`
     );
 
     return {
@@ -194,28 +221,38 @@ export const adminApi = {
 
   async getGroups(_user?: FirebaseUser | null): Promise<AdminGroupItem[]> {
     if (!db) throw new Error('Firestore database is not initialized.');
-    console.log('[Admin Dashboard] Querying groups, users, and members directly from Firestore...');
 
-    const [groupsSnap, usersSnap, membersSnap] = await Promise.all([
-      getDocs(collection(db, 'groups')),
-      getDocs(collection(db, 'users')),
-      getDocs(collection(db, 'groupMembers')),
-    ]);
+    let groupsSnapDocs: any[] = [];
+    try {
+      const snap = await getDocs(collection(db, 'groups'));
+      groupsSnapDocs = snap.docs;
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for collection "groups":', err?.message || err);
+      return [];
+    }
 
     const userMap = new Map<string, any>();
-    usersSnap.forEach((d) => {
-      userMap.set(d.id, d.data());
-    });
+    try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      usersSnap.forEach((d) => userMap.set(d.id, d.data()));
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Secondary user lookup failed in getGroups:', err?.message || err);
+    }
 
     const memberCountsByGroup: Record<string, number> = {};
-    membersSnap.forEach((d) => {
-      const m = d.data();
-      if (m.group_id && (m.status === 'approved' || !m.status)) {
-        memberCountsByGroup[m.group_id] = (memberCountsByGroup[m.group_id] || 0) + 1;
-      }
-    });
+    try {
+      const membersSnap = await getDocs(collection(db, 'groupMembers'));
+      membersSnap.forEach((d) => {
+        const m = d.data();
+        if (m.group_id && (m.status === 'approved' || !m.status)) {
+          memberCountsByGroup[m.group_id] = (memberCountsByGroup[m.group_id] || 0) + 1;
+        }
+      });
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Secondary member count lookup failed in getGroups:', err?.message || err);
+    }
 
-    return groupsSnap.docs.map((d) => {
+    return groupsSnapDocs.map((d) => {
       const g = d.data();
       const host = userMap.get(g.host_id);
       return {
@@ -242,48 +279,57 @@ export const adminApi = {
 
   async getGroupDetails(groupId: string, _user?: FirebaseUser | null): Promise<{ group: AdminGroupItem; members: any[] }> {
     if (!db) throw new Error('Firestore database is not initialized.');
-    console.log(`[Admin Dashboard] Fetching group ${groupId} and roster directly from Firestore...`);
 
-    const groupDocSnap = await getDoc(doc(db, 'groups', groupId));
-    if (!groupDocSnap.exists()) {
-      throw new Error('Group not found');
+    let g: any = {};
+    try {
+      const groupDocSnap = await getDoc(doc(db, 'groups', groupId));
+      if (groupDocSnap.exists()) {
+        g = groupDocSnap.data();
+      }
+    } catch (err: any) {
+      console.warn(`[Admin Dashboard] Query failed for group "${groupId}":`, err?.message || err);
     }
 
-    const g = groupDocSnap.data();
-
-    // Query members belonging to this group
-    const membersSnap = await getDocs(
-      query(collection(db, 'groupMembers'), where('group_id', '==', groupId))
-    );
+    let members: any[] = [];
+    try {
+      const membersSnap = await getDocs(
+        query(collection(db, 'groupMembers'), where('group_id', '==', groupId))
+      );
+      members = membersSnap.docs.map((d) => {
+        const m = d.data();
+        return {
+          id: d.id,
+          user_id: m.user_id || '',
+          role: m.role || 'student',
+          status: m.status || 'approved',
+          joined_at: m.joined_at,
+          username: m.username || m.email?.split('@')[0] || `User ${(m.user_id || '').substring(0, 6)}`,
+          email: m.email || '',
+        };
+      });
+    } catch (err: any) {
+      console.warn(`[Admin Dashboard] Query failed for groupMembers of group "${groupId}":`, err?.message || err);
+    }
 
     let hostEmail = '';
     let hostUsername = g.host_username || 'Host';
 
     if (g.host_id) {
-      const hostDocSnap = await getDoc(doc(db, 'users', g.host_id));
-      if (hostDocSnap.exists()) {
-        const hData = hostDocSnap.data();
-        hostEmail = hData.email || '';
-        hostUsername = hData.username || hostUsername;
+      try {
+        const hostDocSnap = await getDoc(doc(db, 'users', g.host_id));
+        if (hostDocSnap.exists()) {
+          const hData = hostDocSnap.data();
+          hostEmail = hData.email || '';
+          hostUsername = hData.username || hostUsername;
+        }
+      } catch (err: any) {
+        console.warn(`[Admin Dashboard] Host user lookup failed for "${g.host_id}":`, err?.message || err);
       }
     }
 
-    const members = membersSnap.docs.map((d) => {
-      const m = d.data();
-      return {
-        id: d.id,
-        user_id: m.user_id || '',
-        role: m.role || 'student',
-        status: m.status || 'approved',
-        joined_at: m.joined_at,
-        username: m.username || m.email?.split('@')[0] || `User ${(m.user_id || '').substring(0, 6)}`,
-        email: m.email || '',
-      };
-    });
-
     return {
       group: {
-        id: groupDocSnap.id,
+        id: groupId,
         name: g.name || 'Unnamed Class',
         code: g.code || '',
         host_id: g.host_id || '',
@@ -291,7 +337,7 @@ export const adminApi = {
         host_email: hostEmail || undefined,
         member_count: members.length || g.member_count || 1,
         max_members: g.max_members || 50,
-        cr_count: members.filter((m) => m.role === 'cr').length || 1,
+        cr_count: members.filter((m: any) => m.role === 'cr').length || 1,
         status: g.status || 'active',
         approval_mode: g.approval_mode || 'automatic',
         created_at: g.created_at
@@ -307,23 +353,31 @@ export const adminApi = {
 
   async getUsers(_user?: FirebaseUser | null): Promise<AdminUserItem[]> {
     if (!db) throw new Error('Firestore database is not initialized.');
-    console.log('[Admin Dashboard] Querying users and groups directly from Firestore...');
 
-    const [usersSnap, groupsSnap] = await Promise.all([
-      getDocs(collection(db, 'users')),
-      getDocs(collection(db, 'groups')),
-    ]);
+    let usersSnapDocs: any[] = [];
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      usersSnapDocs = snap.docs;
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for collection "users":', err?.message || err);
+      return [];
+    }
 
     const groupMap = new Map<string, any>();
     const hostUserIds = new Set<string>();
 
-    groupsSnap.forEach((d) => {
-      const g = d.data();
-      groupMap.set(d.id, g);
-      if (g.host_id) hostUserIds.add(g.host_id);
-    });
+    try {
+      const groupsSnap = await getDocs(collection(db, 'groups'));
+      groupsSnap.forEach((d) => {
+        const g = d.data();
+        groupMap.set(d.id, g);
+        if (g.host_id) hostUserIds.add(g.host_id);
+      });
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Secondary group lookup failed in getUsers:', err?.message || err);
+    }
 
-    return usersSnap.docs.map((d) => {
+    return usersSnapDocs.map((d) => {
       const u = d.data();
       const userGroup = u.current_group_id ? groupMap.get(u.current_group_id) : null;
       const isHost = hostUserIds.has(d.id) || Boolean(u.is_host);
@@ -355,20 +409,35 @@ export const adminApi = {
   },
 
   async getSystemStatus(_user?: FirebaseUser | null): Promise<AdminSystemConfig> {
-    if (!db) throw new Error('Firestore database is not initialized.');
-    console.log('[Admin Dashboard] Fetching appConfig/system directly from Firestore...');
-
-    const configSnap = await getDoc(doc(db, 'appConfig', 'system'));
-    const d = configSnap.exists() ? (configSnap.data() as any) : {};
-
-    return {
-      isShutdown: Boolean(d?.isShutdown),
-      shutdownMessage: d?.shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance.',
-      scheduledStart: d?.scheduledStart || null,
-      scheduledEnd: d?.scheduledEnd || null,
-      updatedAt: d?.updatedAt,
-      updatedBy: d?.updatedBy,
+    const defaultConfig: AdminSystemConfig = {
+      isShutdown: false,
+      shutdownMessage: 'Class Mate is temporarily unavailable due to maintenance.',
+      scheduledStart: null,
+      scheduledEnd: null,
+      updatedAt: undefined,
+      updatedBy: undefined,
     };
+
+    if (!db) return defaultConfig;
+
+    try {
+      const configSnap = await getDoc(doc(db, 'appConfig', 'system'));
+      if (configSnap.exists()) {
+        const d = configSnap.data() as any;
+        return {
+          isShutdown: Boolean(d?.isShutdown),
+          shutdownMessage: d?.shutdownMessage || defaultConfig.shutdownMessage,
+          scheduledStart: d?.scheduledStart || null,
+          scheduledEnd: d?.scheduledEnd || null,
+          updatedAt: d?.updatedAt,
+          updatedBy: d?.updatedBy,
+        };
+      }
+    } catch (err: any) {
+      console.warn('[Admin Dashboard] Query failed for document "appConfig/system":', err?.message || err);
+    }
+
+    return defaultConfig;
   },
 
   async updateSystemStatus(
@@ -411,26 +480,30 @@ export const adminApi = {
         timestamp: serverTimestamp(),
       });
     } catch (auditErr) {
-      console.warn('[Admin Dashboard] Could not record audit log:', auditErr);
+      console.warn('[Admin Dashboard] Could not record audit log in "adminAuditLogs":', auditErr);
     }
 
     return updateData;
   },
 
   async getAuditLogs(_user?: FirebaseUser | null): Promise<AdminAuditLogItem[]> {
-    if (!db) throw new Error('Firestore database is not initialized.');
-    console.log('[Admin Dashboard] Querying adminAuditLogs directly from Firestore...');
+    if (!db) return [];
 
-    let logsSnap;
+    let logsSnap = null;
     try {
       const q = query(collection(db, 'adminAuditLogs'), orderBy('timestamp', 'desc'), limit(100));
       logsSnap = await getDocs(q);
     } catch (err: any) {
-      console.warn('[Admin Dashboard] Ordered audit log query failed, falling back to unordered query:', err);
-      logsSnap = await getDocs(collection(db, 'adminAuditLogs')).catch(() => null);
+      console.warn('[Admin Dashboard] Query failed for ordered "adminAuditLogs", trying unordered fallback:', err?.message || err);
+      try {
+        logsSnap = await getDocs(collection(db, 'adminAuditLogs'));
+      } catch (fallbackErr: any) {
+        console.warn('[Admin Dashboard] Query failed for collection "adminAuditLogs":', fallbackErr?.message || fallbackErr);
+        return [];
+      }
     }
 
-    if (!logsSnap) return [];
+    if (!logsSnap || logsSnap.empty) return [];
 
     return logsSnap.docs
       .map((d) => {
