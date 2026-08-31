@@ -1,16 +1,4 @@
-import { auth, db } from './firebase';
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  setDoc,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  limit,
-} from 'firebase/firestore';
+import { auth } from './firebase';
 
 export const AUTHORIZED_ADMIN_EMAILS = ['madhurzamutsha@gmail.com'];
 
@@ -72,6 +60,40 @@ export interface AdminAuditLogItem {
   timestamp: string;
 }
 
+/**
+ * Helper: get the current user's Firebase ID token for server-side API calls.
+ */
+async function getIdToken(): Promise<string> {
+  if (!auth?.currentUser) {
+    throw new Error('Not authenticated. Please sign in.');
+  }
+  return auth.currentUser.getIdToken(/* forceRefresh */ false);
+}
+
+/**
+ * Helper: make an authenticated fetch request to a server-side admin API endpoint.
+ */
+async function adminFetch(path: string, options?: RequestInit): Promise<any> {
+  const token = await getIdToken();
+  const res = await fetch(path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options?.headers || {}),
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    const errMsg = data?.error || `Server responded with status ${res.status}`;
+    throw new Error(errMsg);
+  }
+
+  return data;
+}
+
 export const adminApi = {
   async verifyAdmin(): Promise<{ authorized: boolean; email?: string; error?: string }> {
     if (!auth?.currentUser) {
@@ -110,286 +132,131 @@ export const adminApi = {
   },
 
   async getStats(): Promise<{ stats: AdminStats; system: AdminSystemConfig }> {
-    if (!db) {
-      console.error('[Admin Dashboard] Firestore database instance (db) is not initialized.');
-      throw new Error('Firestore database instance is not initialized in firebase.ts');
-    }
+    console.log('[Admin Dashboard] Fetching stats via /api/admin/stats...');
 
-    console.log('[Admin Dashboard] Querying collections: "groups", "users", "groupMembers", "appConfig/system"...');
-
-    let groupsSnap, usersSnap, membersSnap, configSnap;
-    try {
-      [groupsSnap, usersSnap, membersSnap, configSnap] = await Promise.all([
-        getDocs(collection(db, 'groups')),
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'groupMembers')),
-        getDoc(doc(db, 'appConfig', 'system')),
-      ]);
-    } catch (err: any) {
-      console.error('[Admin Dashboard] Firestore query failed with error:', err);
-      const code = err.code ? `[${err.code}] ` : '';
-      throw new Error(`${code}${err.message || String(err)}`);
-    }
+    const data = await adminFetch('/api/admin/stats');
 
     console.log(
-      `[Admin Dashboard] Collections fetched successfully: ${groupsSnap.size} groups, ${usersSnap.size} users, ${membersSnap.size} groupMembers.`
+      `[Admin Dashboard] Stats received: ${data.stats.totalGroups} groups, ${data.stats.totalUsers} users, ${data.stats.totalMembers} members.`
     );
 
-    const groups = groupsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const users = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const members = membersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-    const totalGroups = groupsSnap.size;
-    const totalUsers = usersSnap.size;
-    const totalMembers = membersSnap.size;
-
-    // Total CRs: Unique users where role === 'cr' OR members where role === 'cr'
-    const crUserIds = new Set<string>();
-    users.forEach((u: any) => {
-      if (u.role === 'cr') crUserIds.add(u.id);
-    });
-    members.forEach((m: any) => {
-      if (m.role === 'cr' && m.user_id) crUserIds.add(m.user_id);
-    });
-    const totalCRs = crUserIds.size;
-
-    // Total Hosts: Unique hosts from groups (host_id) OR users marked is_host
-    const hostUserIds = new Set<string>();
-    groups.forEach((g: any) => {
-      if (g.host_id) hostUserIds.add(g.host_id);
-    });
-    users.forEach((u: any) => {
-      if (u.is_host) hostUserIds.add(u.id);
-    });
-    const totalHosts = hostUserIds.size;
-
-    const configData = configSnap.exists() ? configSnap.data() : {};
-    const isShutdown = Boolean(configData?.isShutdown);
-    const scheduledStart = configData?.scheduledStart || null;
-    const scheduledEnd = configData?.scheduledEnd || null;
-
-    let appStatus: 'ONLINE' | 'MAINTENANCE' | 'SCHEDULED' = isShutdown ? 'MAINTENANCE' : 'ONLINE';
-    if (!isShutdown && scheduledStart && scheduledEnd) {
-      const now = Date.now();
-      const start = new Date(scheduledStart).getTime();
-      const end = new Date(scheduledEnd).getTime();
-      if (!isNaN(start) && !isNaN(end)) {
-        if (now >= start && now <= end) appStatus = 'MAINTENANCE';
-        else if (now < start) appStatus = 'SCHEDULED';
-      }
-    }
-
     return {
-      stats: { totalGroups, totalUsers, totalMembers, totalCRs, totalHosts, appStatus },
+      stats: {
+        totalGroups: data.stats.totalGroups ?? 0,
+        totalUsers: data.stats.totalUsers ?? 0,
+        totalMembers: data.stats.totalMembers ?? 0,
+        totalCRs: data.stats.totalCRs ?? 0,
+        totalHosts: data.stats.totalHosts ?? 0,
+        appStatus: data.stats.appStatus || 'ONLINE',
+      },
       system: {
-        isShutdown,
-        shutdownMessage: configData?.shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance.',
-        scheduledStart,
-        scheduledEnd,
-        updatedAt: configData?.updatedAt,
-        updatedBy: configData?.updatedBy,
+        isShutdown: Boolean(data.system?.isShutdown),
+        shutdownMessage: data.system?.shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance.',
+        scheduledStart: data.system?.scheduledStart || null,
+        scheduledEnd: data.system?.scheduledEnd || null,
+        updatedAt: data.system?.updatedAt,
+        updatedBy: data.system?.updatedBy,
       },
     };
   },
 
   async getGroups(): Promise<AdminGroupItem[]> {
-    if (!db) {
-      console.error('[Admin Dashboard] Firestore not initialized');
-      throw new Error('Firestore not initialized');
-    }
+    console.log('[Admin Dashboard] Fetching groups via /api/admin/groups...');
 
-    console.log('[Admin Dashboard] Fetching groups list from Firestore collection: "groups"...');
+    const data = await adminFetch('/api/admin/groups');
+    const groups = data.groups || [];
 
-    let groupsSnap, membersSnap;
-    try {
-      [groupsSnap, membersSnap] = await Promise.all([
-        getDocs(collection(db, 'groups')),
-        getDocs(collection(db, 'groupMembers')),
-      ]);
-    } catch (err: any) {
-      console.error('[Admin Dashboard] Failed to load groups:', err);
-      const code = err.code ? `[${err.code}] ` : '';
-      throw new Error(`${code}${err.message || String(err)}`);
-    }
+    console.log(`[Admin Dashboard] Groups received: ${groups.length} groups.`);
 
-    console.log(`[Admin Dashboard] "groups" returned ${groupsSnap.size} docs, "groupMembers" returned ${membersSnap.size} docs.`);
-
-    const memberCounts: Record<string, number> = {};
-    const crCounts: Record<string, number> = {};
-
-    membersSnap.forEach((docSnap) => {
-      const m = docSnap.data();
-      const gid = m.group_id;
-      if (gid) {
-        if (m.status === 'approved' || !m.status) {
-          memberCounts[gid] = (memberCounts[gid] || 0) + 1;
-        }
-        if (m.role === 'cr') crCounts[gid] = (crCounts[gid] || 0) + 1;
-      }
-    });
-
-    return groupsSnap.docs.map((d) => {
-      const g = d.data();
-      const createdDate = g.created_at
-        ? typeof g.created_at === 'string'
-          ? g.created_at
-          : g.created_at.toDate?.()?.toISOString?.() || ''
-        : '';
-
-      return {
-        id: d.id,
-        name: g.name || 'Unnamed Class',
-        code: g.code || '',
-        host_id: g.host_id || '',
-        host_username: g.host_username || 'Host',
-        host_email: g.host_email || undefined,
-        member_count: memberCounts[d.id] ?? g.member_count ?? 1,
-        max_members: g.max_members || 50,
-        cr_count: crCounts[d.id] || 1,
-        status: g.status || (g.is_active === false ? 'inactive' : 'active'),
-        approval_mode: g.approval_mode || 'automatic',
-        created_at: createdDate || new Date().toISOString(),
-        expires_at: g.expires_at || '',
-      };
-    });
+    return groups.map((g: any) => ({
+      id: g.id || '',
+      name: g.name || 'Unnamed Class',
+      code: g.code || '',
+      host_id: g.host_id || '',
+      host_username: g.host_username || 'Host',
+      host_email: g.host_email || undefined,
+      member_count: g.member_count ?? 1,
+      max_members: g.max_members || 50,
+      cr_count: g.cr_count || 1,
+      status: g.status || 'active',
+      approval_mode: g.approval_mode || 'automatic',
+      created_at: g.created_at || new Date().toISOString(),
+      expires_at: g.expires_at || '',
+    }));
   },
 
   async getGroupDetails(groupId: string): Promise<{ group: AdminGroupItem; members: any[] }> {
-    if (!db) throw new Error('Firestore not initialized');
-    console.log(`[Admin Dashboard] Fetching group roster for: ${groupId}...`);
+    console.log(`[Admin Dashboard] Fetching group details via /api/admin/groups?id=${groupId}...`);
 
-    let groupDoc, membersSnap, usersSnap;
-    try {
-      [groupDoc, membersSnap, usersSnap] = await Promise.all([
-        getDoc(doc(db, 'groups', groupId)),
-        getDocs(collection(db, 'groupMembers')),
-        getDocs(collection(db, 'users')),
-      ]);
-    } catch (err: any) {
-      console.error(`[Admin Dashboard] Failed to load group ${groupId}:`, err);
-      const code = err.code ? `[${err.code}] ` : '';
-      throw new Error(`${code}${err.message || String(err)}`);
-    }
-
-    if (!groupDoc.exists()) {
-      throw new Error(`Group "${groupId}" not found in Firestore.`);
-    }
-
-    const g = groupDoc.data();
-    const usersMap: Record<string, any> = {};
-    usersSnap.forEach((u) => {
-      usersMap[u.id] = u.data();
-    });
-
-    const members: any[] = [];
-    membersSnap.forEach((mSnap) => {
-      const m = mSnap.data();
-      if (m.group_id === groupId) {
-        const u = usersMap[m.user_id] || {};
-        members.push({
-          id: mSnap.id,
-          user_id: m.user_id,
-          role: m.role || 'student',
-          status: m.status || 'approved',
-          joined_at: m.joined_at,
-          username: m.username || u.username || u.email?.split('@')[0] || `User ${m.user_id?.substring(0, 6)}`,
-          email: m.email || u.email || '',
-        });
-      }
-    });
+    const data = await adminFetch(`/api/admin/groups?id=${encodeURIComponent(groupId)}`);
+    const g = data.group || {};
+    const members = data.members || [];
 
     console.log(`[Admin Dashboard] Group ${groupId} roster returned ${members.length} members.`);
 
     return {
       group: {
-        id: groupDoc.id,
+        id: g.id || groupId,
         name: g.name || 'Unnamed Class',
         code: g.code || '',
         host_id: g.host_id || '',
         host_username: g.host_username || 'Host',
         host_email: g.host_email,
-        member_count: members.length,
+        member_count: members.length || g.member_count || 1,
         max_members: g.max_members || 50,
-        cr_count: members.filter((m) => m.role === 'cr').length || 1,
+        cr_count: members.filter((m: any) => m.role === 'cr').length || 1,
         status: g.status || 'active',
         approval_mode: g.approval_mode || 'automatic',
         created_at: g.created_at || '',
         expires_at: g.expires_at || '',
       },
-      members,
+      members: members.map((m: any) => ({
+        id: m.id || '',
+        user_id: m.user_id || '',
+        role: m.role || 'student',
+        status: m.status || 'approved',
+        joined_at: m.joined_at,
+        username: m.username || m.email?.split('@')[0] || `User ${(m.user_id || '').substring(0, 6)}`,
+        email: m.email || '',
+      })),
     };
   },
 
   async getUsers(): Promise<AdminUserItem[]> {
-    if (!db) {
-      console.error('[Admin Dashboard] Firestore not initialized');
-      throw new Error('Firestore not initialized');
-    }
+    console.log('[Admin Dashboard] Fetching users via /api/admin/users...');
 
-    console.log('[Admin Dashboard] Fetching user directory from Firestore collection: "users"...');
+    const data = await adminFetch('/api/admin/users');
+    const users = data.users || [];
 
-    let usersSnap, groupsSnap;
-    try {
-      [usersSnap, groupsSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'groups')),
-      ]);
-    } catch (err: any) {
-      console.error('[Admin Dashboard] Failed to load users:', err);
-      const code = err.code ? `[${err.code}] ` : '';
-      throw new Error(`${code}${err.message || String(err)}`);
-    }
+    console.log(`[Admin Dashboard] Users received: ${users.length} users.`);
 
-    console.log(`[Admin Dashboard] "users" returned ${usersSnap.size} docs, "groups" returned ${groupsSnap.size} docs.`);
-
-    const groupsMap: Record<string, { name: string; code: string }> = {};
-    groupsSnap.forEach((g) => {
-      const data = g.data();
-      groupsMap[g.id] = { name: data.name || '', code: data.code || '' };
-    });
-
-    return usersSnap.docs.map((d) => {
-      const u = d.data();
-      const grp = u.current_group_id ? groupsMap[u.current_group_id] : null;
-      const createdDate = u.created_at
-        ? typeof u.created_at === 'string'
-          ? u.created_at
-          : u.created_at.toDate?.()?.toISOString?.() || ''
-        : '';
-      const lastActiveDate = u.last_active_at
-        ? typeof u.last_active_at === 'string'
-          ? u.last_active_at
-          : u.last_active_at.toDate?.()?.toISOString?.() || ''
-        : null;
-
-      return {
-        id: d.id,
-        email: u.email || '',
-        username: u.username || u.email?.split('@')[0] || 'Anonymous',
-        role: u.role || 'student',
-        is_host: Boolean(u.is_host),
-        current_group_id: u.current_group_id || null,
-        group_name: grp?.name || null,
-        group_code: grp?.code || null,
-        created_at: createdDate || new Date().toISOString(),
-        last_active_at: lastActiveDate,
-      };
-    });
+    return users.map((u: any) => ({
+      id: u.id || '',
+      email: u.email || '',
+      username: u.username || u.email?.split('@')[0] || 'Anonymous',
+      role: u.role || 'student',
+      is_host: Boolean(u.is_host),
+      current_group_id: u.current_group_id || null,
+      group_name: u.group_name || null,
+      group_code: u.group_code || null,
+      created_at: u.created_at || new Date().toISOString(),
+      last_active_at: u.last_active_at || null,
+    }));
   },
 
   async getSystemStatus(): Promise<AdminSystemConfig> {
-    if (!db) throw new Error('Firestore not initialized');
-    console.log('[Admin Dashboard] Fetching appConfig/system...');
+    console.log('[Admin Dashboard] Fetching system status via /api/admin/system...');
 
-    const configSnap = await getDoc(doc(db, 'appConfig', 'system'));
-    const d = configSnap.exists() ? configSnap.data() : {};
+    const data = await adminFetch('/api/admin/system');
+    const config = data.config || {};
+
     return {
-      isShutdown: Boolean(d?.isShutdown),
-      shutdownMessage: d?.shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance.',
-      scheduledStart: d?.scheduledStart || null,
-      scheduledEnd: d?.scheduledEnd || null,
-      updatedAt: d?.updatedAt,
-      updatedBy: d?.updatedBy,
+      isShutdown: Boolean(config.isShutdown),
+      shutdownMessage: config.shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance.',
+      scheduledStart: config.scheduledStart || null,
+      scheduledEnd: config.scheduledEnd || null,
+      updatedAt: config.updatedAt,
+      updatedBy: config.updatedBy,
     };
   },
 
@@ -401,70 +268,42 @@ export const adminApi = {
     actionType?: string;
     notes?: string;
   }): Promise<AdminSystemConfig> {
-    if (!db) throw new Error('Firestore not initialized');
-    const callerEmail = (auth?.currentUser?.email || 'admin').toLowerCase();
-    const configRef = doc(db, 'appConfig', 'system');
-    const updateData = {
-      isShutdown: payload.isShutdown,
-      shutdownMessage: payload.shutdownMessage,
-      scheduledStart: payload.scheduledStart,
-      scheduledEnd: payload.scheduledEnd,
-      updatedAt: new Date().toISOString(),
-      updatedBy: callerEmail,
-    };
+    console.log('[Admin Dashboard] Updating system status via POST /api/admin/system...');
 
-    console.log('[Admin Dashboard] Updating appConfig/system with:', updateData);
-    await setDoc(configRef, updateData, { merge: true });
-
-    // Write audit log
-    await addDoc(collection(db, 'adminAuditLogs'), {
-      performedBy: callerEmail,
-      action: payload.actionType || (payload.isShutdown ? 'APP_SHUTDOWN' : 'APP_RESTART'),
-      details:
-        payload.notes ||
-        (payload.isShutdown ? 'Manual application shutdown initiated.' : 'Application brought back online.'),
-      isShutdown: payload.isShutdown,
-      scheduledStart: payload.scheduledStart,
-      scheduledEnd: payload.scheduledEnd,
-      timestamp: serverTimestamp(),
+    const data = await adminFetch('/api/admin/system', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
 
-    return updateData;
+    const config = data.config || {};
+
+    return {
+      isShutdown: Boolean(config.isShutdown),
+      shutdownMessage: config.shutdownMessage || 'Class Mate is temporarily unavailable due to maintenance.',
+      scheduledStart: config.scheduledStart || null,
+      scheduledEnd: config.scheduledEnd || null,
+      updatedAt: config.updatedAt,
+      updatedBy: config.updatedBy,
+    };
   },
 
   async getAuditLogs(): Promise<AdminAuditLogItem[]> {
-    if (!db) throw new Error('Firestore not initialized');
-    console.log('[Admin Dashboard] Fetching audit logs from "adminAuditLogs"...');
+    console.log('[Admin Dashboard] Fetching audit logs via /api/admin/audit...');
 
-    const q = query(collection(db, 'adminAuditLogs'), orderBy('timestamp', 'desc'), limit(50));
-    let logsSnap;
-    try {
-      logsSnap = await getDocs(q);
-    } catch (err: any) {
-      console.warn('[Admin Dashboard] Error ordering adminAuditLogs, falling back to unordered query:', err);
-      logsSnap = await getDocs(collection(db, 'adminAuditLogs')).catch(() => null);
-    }
+    const data = await adminFetch('/api/admin/audit');
+    const logs = data.logs || [];
 
-    if (!logsSnap) return [];
+    console.log(`[Admin Dashboard] Audit logs received: ${logs.length} entries.`);
 
-    console.log(`[Admin Dashboard] "adminAuditLogs" returned ${logsSnap.size} docs.`);
-
-    return logsSnap.docs.map((d) => {
-      const l = d.data();
-      let ts = new Date().toISOString();
-      if (l.timestamp?.toDate) ts = l.timestamp.toDate().toISOString();
-      else if (typeof l.timestamp === 'string') ts = l.timestamp;
-
-      return {
-        id: d.id,
-        performedBy: l.performedBy || 'admin',
-        action: l.action || 'UPDATE',
-        details: l.details || '',
-        isShutdown: l.isShutdown,
-        scheduledStart: l.scheduledStart,
-        scheduledEnd: l.scheduledEnd,
-        timestamp: ts,
-      };
-    });
+    return logs.map((l: any) => ({
+      id: l.id || '',
+      performedBy: l.performedBy || 'admin',
+      action: l.action || 'UPDATE',
+      details: l.details || '',
+      isShutdown: l.isShutdown,
+      scheduledStart: l.scheduledStart,
+      scheduledEnd: l.scheduledEnd,
+      timestamp: l.timestamp || new Date().toISOString(),
+    }));
   },
 };
