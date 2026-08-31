@@ -149,37 +149,43 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
       >
         <MetricCard
           title="Total Groups / Classes"
-          value={loading ? 'Loading...' : stats ? String(stats.totalGroups) : '—'}
+          value={stats ? String(stats.totalGroups) : '0'}
+          loading={loading}
           icon="🏫"
           onClick={() => onNavigateTab('groups')}
         />
         <MetricCard
           title="Total Registered Users"
-          value={loading ? 'Loading...' : stats ? String(stats.totalUsers) : '—'}
+          value={stats ? String(stats.totalUsers) : '0'}
+          loading={loading}
           icon="👥"
           onClick={() => onNavigateTab('users')}
         />
         <MetricCard
           title="Total Class Members"
-          value={loading ? 'Loading...' : stats ? String(stats.totalMembers) : '—'}
+          value={stats ? String(stats.totalMembers) : '0'}
+          loading={loading}
           icon="🎓"
           onClick={() => onNavigateTab('groups')}
         />
         <MetricCard
           title="Total Class Representatives"
-          value={loading ? 'Loading...' : stats ? String(stats.totalCRs) : '—'}
+          value={stats ? String(stats.totalCRs) : '0'}
+          loading={loading}
           icon="🎖️"
           onClick={() => onNavigateTab('users')}
         />
         <MetricCard
           title="Total Hosts"
-          value={loading ? 'Loading...' : stats ? String(stats.totalHosts) : '—'}
+          value={stats ? String(stats.totalHosts) : '0'}
+          loading={loading}
           icon="👑"
           onClick={() => onNavigateTab('groups')}
         />
         <MetricCard
           title="Application Status"
-          value={loading ? 'Loading...' : stats?.appStatus || 'ONLINE'}
+          value={stats?.appStatus || 'ONLINE'}
+          loading={loading}
           icon="⚡"
           valueColor={isMaintenance ? '#EF4444' : isScheduled ? '#F59E0B' : '#10B981'}
           onClick={() => onNavigateTab('settings')}
@@ -253,8 +259,9 @@ const MetricCard: React.FC<{
   value: string;
   icon: string;
   valueColor?: string;
+  loading?: boolean;
   onClick?: () => void;
-}> = ({ title, value, icon, valueColor, onClick }) => (
+}> = ({ title, value, icon, valueColor, loading, onClick }) => (
   <div
     onClick={onClick}
     style={{
@@ -272,8 +279,20 @@ const MetricCard: React.FC<{
       </div>
       <span style={{ fontSize: 20 }}>{icon}</span>
     </div>
-    <div style={{ fontSize: 28, fontWeight: 800, color: valueColor || '#FFFFFF', fontFamily: 'var(--font-head)' }}>
-      {value}
-    </div>
+    {loading ? (
+      <div
+        style={{
+          height: 34,
+          width: '60%',
+          borderRadius: 8,
+          background: 'rgba(255,255,255,0.08)',
+          animation: 'pulse 1.5s ease-in-out infinite',
+        }}
+      />
+    ) : (
+      <div style={{ fontSize: 28, fontWeight: 800, color: valueColor || '#FFFFFF', fontFamily: 'var(--font-head)' }}>
+        {value}
+      </div>
+    )}
   </div>
 );

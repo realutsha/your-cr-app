@@ -60,11 +60,22 @@ export interface AdminAuditLogItem {
   timestamp: string;
 }
 
+let currentAdminUser: FirebaseUser | null = null;
+
+export function setAdminUserSession(user: FirebaseUser | null) {
+  currentAdminUser = user;
+}
+
+export function getAdminUserSession(): FirebaseUser | null {
+  return currentAdminUser;
+}
+
 /**
  * Helper: wait for Firebase Auth to finish resolving initial session,
  * and return the authenticated user (or null).
  */
 export async function getAuthenticatedAdminUser(): Promise<FirebaseUser | null> {
+  if (currentAdminUser) return currentAdminUser;
   if (!auth) return null;
   if (auth.currentUser) return auth.currentUser;
 
@@ -87,6 +98,9 @@ export async function getAuthenticatedAdminUser(): Promise<FirebaseUser | null> 
     const unsubscribe = onAuthStateChanged(authInstance, (user) => {
       clearTimeout(timer);
       unsubscribe();
+      if (user) {
+        setAdminUserSession(user);
+      }
       resolve(user);
     });
   });
@@ -96,8 +110,8 @@ export async function getAuthenticatedAdminUser(): Promise<FirebaseUser | null> 
  * Helper: get the current user's Firebase ID token for server-side API calls.
  * Waits for auth initialization to eliminate race conditions.
  */
-async function getIdToken(forceRefresh = false): Promise<string> {
-  const user = await getAuthenticatedAdminUser();
+export async function getAdminIdToken(userOverride?: FirebaseUser | null, forceRefresh = false): Promise<string> {
+  const user = userOverride || currentAdminUser || auth?.currentUser || (await getAuthenticatedAdminUser());
   if (!user) {
     throw new Error('Not authenticated. Please sign in.');
   }
@@ -108,8 +122,13 @@ async function getIdToken(forceRefresh = false): Promise<string> {
  * Helper: make an authenticated fetch request to a server-side admin API endpoint.
  * Automatically retries with a refreshed token if a 401 is encountered.
  */
-async function adminFetch(path: string, options?: RequestInit): Promise<any> {
-  let token = await getIdToken(false);
+export async function adminFetch(path: string, options?: RequestInit, userOverride?: FirebaseUser | null): Promise<any> {
+  const user = userOverride || currentAdminUser || auth?.currentUser || (await getAuthenticatedAdminUser());
+  if (!user) {
+    throw new Error('Not authenticated. Please sign in.');
+  }
+
+  let token = await user.getIdToken(false);
   let res = await fetch(path, {
     ...options,
     headers: {
@@ -122,7 +141,7 @@ async function adminFetch(path: string, options?: RequestInit): Promise<any> {
   // If unauthorized (e.g. token expired), attempt one retry with force refresh
   if (res.status === 401) {
     try {
-      token = await getIdToken(true);
+      token = await user.getIdToken(true);
       res = await fetch(path, {
         ...options,
         headers: {
@@ -148,7 +167,7 @@ async function adminFetch(path: string, options?: RequestInit): Promise<any> {
 
 export const adminApi = {
   async verifyAdmin(explicitUser?: FirebaseUser | null): Promise<{ authorized: boolean; email?: string; error?: string }> {
-    const user = explicitUser || (await getAuthenticatedAdminUser());
+    const user = explicitUser || currentAdminUser || auth?.currentUser || (await getAuthenticatedAdminUser());
     if (!user) {
       return { authorized: false, error: 'Not authenticated. Please sign in.' };
     }
@@ -167,6 +186,7 @@ export const adminApi = {
       const isKnownEmail = AUTHORIZED_ADMIN_EMAILS.includes(email);
 
       if (isKnownEmail || hasAdminClaim) {
+        setAdminUserSession(user);
         console.log(`[Admin Dashboard] Admin verification SUCCESS for: ${email}`);
         return { authorized: true, email };
       }
@@ -183,10 +203,10 @@ export const adminApi = {
     }
   },
 
-  async getStats(): Promise<{ stats: AdminStats; system: AdminSystemConfig }> {
+  async getStats(user?: FirebaseUser | null): Promise<{ stats: AdminStats; system: AdminSystemConfig }> {
     console.log('[Admin Dashboard] Fetching stats via /api/admin/stats...');
 
-    const data = await adminFetch('/api/admin/stats');
+    const data = await adminFetch('/api/admin/stats', undefined, user);
 
     console.log(
       `[Admin Dashboard] Stats received: ${data.stats?.totalGroups} groups, ${data.stats?.totalUsers} users, ${data.stats?.totalMembers} members.`
@@ -212,10 +232,10 @@ export const adminApi = {
     };
   },
 
-  async getGroups(): Promise<AdminGroupItem[]> {
+  async getGroups(user?: FirebaseUser | null): Promise<AdminGroupItem[]> {
     console.log('[Admin Dashboard] Fetching groups via /api/admin/groups...');
 
-    const data = await adminFetch('/api/admin/groups');
+    const data = await adminFetch('/api/admin/groups', undefined, user);
     const groups = data.groups || [];
 
     console.log(`[Admin Dashboard] Groups received: ${groups.length} groups.`);
@@ -237,10 +257,10 @@ export const adminApi = {
     }));
   },
 
-  async getGroupDetails(groupId: string): Promise<{ group: AdminGroupItem; members: any[] }> {
+  async getGroupDetails(groupId: string, user?: FirebaseUser | null): Promise<{ group: AdminGroupItem; members: any[] }> {
     console.log(`[Admin Dashboard] Fetching group details via /api/admin/groups?id=${groupId}...`);
 
-    const data = await adminFetch(`/api/admin/groups?id=${encodeURIComponent(groupId)}`);
+    const data = await adminFetch(`/api/admin/groups?id=${encodeURIComponent(groupId)}`, undefined, user);
     const g = data.group || {};
     const members = data.members || [];
 
@@ -274,10 +294,10 @@ export const adminApi = {
     };
   },
 
-  async getUsers(): Promise<AdminUserItem[]> {
+  async getUsers(user?: FirebaseUser | null): Promise<AdminUserItem[]> {
     console.log('[Admin Dashboard] Fetching users via /api/admin/users...');
 
-    const data = await adminFetch('/api/admin/users');
+    const data = await adminFetch('/api/admin/users', undefined, user);
     const users = data.users || [];
 
     console.log(`[Admin Dashboard] Users received: ${users.length} users.`);
@@ -296,10 +316,10 @@ export const adminApi = {
     }));
   },
 
-  async getSystemStatus(): Promise<AdminSystemConfig> {
+  async getSystemStatus(user?: FirebaseUser | null): Promise<AdminSystemConfig> {
     console.log('[Admin Dashboard] Fetching system status via /api/admin/system...');
 
-    const data = await adminFetch('/api/admin/system');
+    const data = await adminFetch('/api/admin/system', undefined, user);
     const config = data.config || {};
 
     return {
@@ -312,20 +332,27 @@ export const adminApi = {
     };
   },
 
-  async updateSystemStatus(payload: {
-    isShutdown: boolean;
-    shutdownMessage: string;
-    scheduledStart: string | null;
-    scheduledEnd: string | null;
-    actionType?: string;
-    notes?: string;
-  }): Promise<AdminSystemConfig> {
+  async updateSystemStatus(
+    payload: {
+      isShutdown: boolean;
+      shutdownMessage: string;
+      scheduledStart: string | null;
+      scheduledEnd: string | null;
+      actionType?: string;
+      notes?: string;
+    },
+    user?: FirebaseUser | null
+  ): Promise<AdminSystemConfig> {
     console.log('[Admin Dashboard] Updating system status via POST /api/admin/system...');
 
-    const data = await adminFetch('/api/admin/system', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const data = await adminFetch(
+      '/api/admin/system',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      user
+    );
 
     const config = data.config || {};
 
@@ -339,10 +366,10 @@ export const adminApi = {
     };
   },
 
-  async getAuditLogs(): Promise<AdminAuditLogItem[]> {
+  async getAuditLogs(user?: FirebaseUser | null): Promise<AdminAuditLogItem[]> {
     console.log('[Admin Dashboard] Fetching audit logs via /api/admin/audit...');
 
-    const data = await adminFetch('/api/admin/audit');
+    const data = await adminFetch('/api/admin/audit', undefined, user);
     const logs = data.logs || [];
 
     console.log(`[Admin Dashboard] Audit logs received: ${logs.length} entries.`);

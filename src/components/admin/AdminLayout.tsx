@@ -1,6 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { auth, onAuthStateChanged, firebaseSignOut } from '../../lib/firebase';
-import { adminApi, type AdminStats, type AdminSystemConfig, type AdminGroupItem, type AdminUserItem, type AdminAuditLogItem } from '../../lib/adminApi';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { auth, onAuthStateChanged, firebaseSignOut, type FirebaseUser } from '../../lib/firebase';
+import {
+  adminApi,
+  setAdminUserSession,
+  type AdminStats,
+  type AdminSystemConfig,
+  type AdminGroupItem,
+  type AdminUserItem,
+  type AdminAuditLogItem,
+} from '../../lib/adminApi';
 import { AdminLogin } from './AdminLogin';
 import { AdminOverviewTab } from './AdminOverviewTab';
 import { AdminGroupsTab } from './AdminGroupsTab';
@@ -14,8 +22,12 @@ type AuthState = 'checking' | 'unauthenticated' | 'authorized' | 'unauthorized';
 
 export const AdminLayout: React.FC = () => {
   const [authState, setAuthState] = useState<AuthState>('checking');
+  const [adminUser, setAdminUser] = useState<FirebaseUser | null>(null);
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
   const [attemptedEmail, setAttemptedEmail] = useState<string | null>(null);
+
+  const adminUserRef = useRef<FirebaseUser | null>(null);
+  adminUserRef.current = adminUser;
 
   const getInitialTab = (): AdminTab => {
     if (typeof window !== 'undefined') {
@@ -44,11 +56,18 @@ export const AdminLayout: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = useCallback(async (activeUser?: FirebaseUser | null) => {
+    const userToUse = activeUser || adminUserRef.current || auth?.currentUser;
+
+    if (!userToUse) {
+      console.warn('[Admin Dashboard] Cannot load data: No authenticated admin session available.');
+      return;
+    }
+
     setLoadingData(true);
     setDataError(null);
 
-    console.log('[Admin Dashboard] Beginning full data sync from API...');
+    console.log('[Admin Dashboard] Fetching dashboard data via authenticated admin API endpoints...');
 
     let statsError: string | null = null;
     let groupsError: string | null = null;
@@ -56,19 +75,19 @@ export const AdminLayout: React.FC = () => {
 
     try {
       const [statsRes, groupsRes, usersRes, auditRes] = await Promise.all([
-        adminApi.getStats().catch((err) => {
+        adminApi.getStats(userToUse).catch((err) => {
           statsError = err.message || String(err);
           return null;
         }),
-        adminApi.getGroups().catch((err) => {
+        adminApi.getGroups(userToUse).catch((err) => {
           groupsError = err.message || String(err);
           return null;
         }),
-        adminApi.getUsers().catch((err) => {
+        adminApi.getUsers(userToUse).catch((err) => {
           usersError = err.message || String(err);
           return null;
         }),
-        adminApi.getAuditLogs().catch(() => []),
+        adminApi.getAuditLogs(userToUse).catch(() => []),
       ]);
 
       if (statsRes) {
@@ -88,12 +107,12 @@ export const AdminLayout: React.FC = () => {
       const combinedError = statsError || groupsError || usersError;
       if (combinedError) {
         setDataError(combinedError);
-        console.error('[Admin Dashboard] Encountered errors during load:', combinedError);
+        console.error('[Admin Dashboard] Encountered errors during data sync:', combinedError);
       } else {
-        console.log('[Admin Dashboard] Full data sync completed successfully.');
+        console.log('[Admin Dashboard] Dashboard data synced successfully.');
       }
     } catch (err: any) {
-      console.error('[Admin Dashboard] Unexpected exception in loadDashboardData:', err);
+      console.error('[Admin Dashboard] Exception in loadDashboardData:', err);
       setDataError(err.message || 'Failed to sync admin data.');
     } finally {
       setLoadingData(false);
@@ -114,8 +133,11 @@ export const AdminLayout: React.FC = () => {
 
       if (!user) {
         setAuthState('unauthenticated');
+        setAdminUser(null);
+        setAdminUserSession(null);
         setAdminEmail(null);
         setAttemptedEmail(null);
+
         // If on a protected route while logged out, redirect URL to /admin/login
         if (
           typeof window !== 'undefined' &&
@@ -133,22 +155,31 @@ export const AdminLayout: React.FC = () => {
         if (!isMounted) return;
 
         if (res.authorized) {
+          setAdminUser(user);
+          setAdminUserSession(user);
           setAuthState('authorized');
           setAdminEmail(user.email);
           setAttemptedEmail(null);
+
           // If was on /admin/login, redirect URL to /admin
           if (typeof window !== 'undefined' && window.location.pathname === '/admin/login') {
             window.history.replaceState({}, '', '/admin');
             setCurrentTab('overview');
           }
-          loadDashboardData();
+
+          // Trigger data query ONLY AFTER session and authorization are confirmed
+          loadDashboardData(user);
         } else {
           setAuthState('unauthorized');
+          setAdminUser(null);
+          setAdminUserSession(null);
           setAttemptedEmail(user.email);
         }
       } catch {
         if (!isMounted) return;
         setAuthState('unauthorized');
+        setAdminUser(null);
+        setAdminUserSession(null);
         setAttemptedEmail(user.email);
       }
     });
@@ -180,6 +211,8 @@ export const AdminLayout: React.FC = () => {
     if (auth) {
       await firebaseSignOut(auth).catch(() => {});
     }
+    setAdminUser(null);
+    setAdminUserSession(null);
     setAuthState('unauthenticated');
     setAdminEmail(null);
     setAttemptedEmail(null);
@@ -211,16 +244,16 @@ export const AdminLayout: React.FC = () => {
       >
         <div
           style={{
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             borderRadius: '50%',
-            border: '2px solid rgba(255,255,255,0.15)',
+            border: '2.5px solid rgba(255,255,255,0.15)',
             borderTopColor: '#818CF8',
             animation: 'spin 0.6s linear infinite',
           }}
         />
-        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
-          Verifying administrator credentials...
+        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13.5, fontWeight: 500 }}>
+          Verifying administrator session...
         </div>
       </div>
     );
@@ -239,6 +272,8 @@ export const AdminLayout: React.FC = () => {
         attemptedEmail={attemptedEmail}
         onResetAuth={() => {
           setAuthState('unauthenticated');
+          setAdminUser(null);
+          setAdminUserSession(null);
           setAttemptedEmail(null);
         }}
       />
@@ -379,7 +414,7 @@ export const AdminLayout: React.FC = () => {
             auditLogs={auditLogs}
             loading={loadingData}
             error={dataError}
-            onRetry={loadDashboardData}
+            onRetry={() => loadDashboardData(adminUser)}
             onNavigateTab={handleTabChange}
           />
         )}
@@ -389,7 +424,7 @@ export const AdminLayout: React.FC = () => {
             groups={groups}
             loading={loadingData}
             error={dataError}
-            onRefresh={loadDashboardData}
+            onRefresh={() => loadDashboardData(adminUser)}
           />
         )}
 
@@ -398,7 +433,7 @@ export const AdminLayout: React.FC = () => {
             users={users}
             loading={loadingData}
             error={dataError}
-            onRefresh={loadDashboardData}
+            onRefresh={() => loadDashboardData(adminUser)}
           />
         )}
 
@@ -407,7 +442,7 @@ export const AdminLayout: React.FC = () => {
             system={system}
             onUpdateSuccess={(newConfig) => {
               setSystem(newConfig);
-              loadDashboardData();
+              loadDashboardData(adminUser);
             }}
             showToast={showToast}
           />
@@ -417,7 +452,7 @@ export const AdminLayout: React.FC = () => {
           <AdminAuditTab
             logs={auditLogs}
             loading={loadingData}
-            onRefresh={loadDashboardData}
+            onRefresh={() => loadDashboardData(adminUser)}
           />
         )}
       </div>
