@@ -67,7 +67,7 @@ export const AdminLayout: React.FC = () => {
     setLoadingData(true);
     setDataError(null);
 
-    console.log('[Admin Dashboard] Fetching dashboard data via authenticated admin API endpoints...');
+    console.log('[Admin Dashboard] Fetching dashboard data directly from Firestore...');
 
     let statsError: string | null = null;
     let groupsError: string | null = null;
