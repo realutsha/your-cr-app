@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
+  setPersistence,
+  browserLocalPersistence,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
@@ -74,6 +76,14 @@ export const app: FirebaseApp | null = isFirebaseConfigured
 
 // Initialize Firebase Authentication
 export const auth: Auth | null = app ? getAuth(app) : null;
+
+// Explicitly set persistence to browserLocalPersistence so admin sessions survive page refresh.
+// Firebase defaults to this, but making it explicit guards against misconfiguration.
+if (auth) {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('[Firebase] Failed to set auth persistence:', err);
+  });
+}
 
 // Initialize Cloud Firestore with multi-tab persistence and fallback
 function initFirestore(firebaseApp: FirebaseApp): Firestore {

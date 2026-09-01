@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { auth, onAuthStateChanged, firebaseSignOut, type FirebaseUser } from '../../lib/firebase';
+import { collection, onSnapshot, type QuerySnapshot, type DocumentData } from 'firebase/firestore';
+import { auth, db, onAuthStateChanged, firebaseSignOut, type FirebaseUser } from '../../lib/firebase';
 import {
   adminApi,
   setAdminUserSession,
@@ -56,7 +57,129 @@ export const AdminLayout: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const loadDashboardData = useCallback(async (activeUser?: FirebaseUser | null) => {
+  // Refs to hold latest raw snapshot data for cross-collection recomputation
+  const groupsDocsRef = useRef<{ id: string; data: any }[]>([]);
+  const usersDocsRef = useRef<{ id: string; data: any }[]>([]);
+  const membersDocsRef = useRef<{ id: string; data: any }[]>([]);
+
+  // Recompute stats, groups list, and users list from the latest snapshot refs.
+  // Called whenever any of the 3 onSnapshot listeners fires.
+  const recomputeFromSnapshots = useCallback(() => {
+    const groupsDocs = groupsDocsRef.current;
+    const usersDocs = usersDocsRef.current;
+    const membersDocs = membersDocsRef.current;
+
+    // --- Stats ---
+    const totalGroups = groupsDocs.length;
+    const totalUsers = usersDocs.length;
+    const totalMembers = membersDocs.length;
+
+    let totalCRs = 0;
+    const hostUserIds = new Set<string>();
+
+    usersDocs.forEach((u) => {
+      if (u.data.role === 'cr') totalCRs++;
+      if (u.data.is_host && u.id) hostUserIds.add(u.id);
+    });
+
+    groupsDocs.forEach((g) => {
+      if (g.data.host_id) hostUserIds.add(g.data.host_id);
+    });
+
+    const totalHosts = hostUserIds.size;
+
+    setStats((prev) => ({
+      totalGroups,
+      totalUsers,
+      totalMembers,
+      totalCRs,
+      totalHosts,
+      appStatus: prev?.appStatus || 'ONLINE',
+    }));
+
+    // --- Groups table ---
+    const userMap = new Map<string, any>();
+    usersDocs.forEach((u) => userMap.set(u.id, u.data));
+
+    const memberCountsByGroup: Record<string, number> = {};
+    membersDocs.forEach((m) => {
+      if (m.data.group_id && (m.data.status === 'approved' || !m.data.status)) {
+        memberCountsByGroup[m.data.group_id] = (memberCountsByGroup[m.data.group_id] || 0) + 1;
+      }
+    });
+
+    const groupItems: AdminGroupItem[] = groupsDocs.map((d) => {
+      const g = d.data;
+      const host = userMap.get(g.host_id);
+      return {
+        id: d.id,
+        name: g.name || 'Unnamed Class',
+        code: g.code || '',
+        host_id: g.host_id || '',
+        host_username: host?.username || g.host_username || 'Host',
+        host_email: host?.email || undefined,
+        member_count: memberCountsByGroup[d.id] || g.member_count || 1,
+        max_members: g.max_members || 50,
+        cr_count: g.cr_count || 1,
+        status: g.status || 'active',
+        approval_mode: g.approval_mode || 'automatic',
+        created_at: g.created_at
+          ? typeof g.created_at === 'string'
+            ? g.created_at
+            : g.created_at.toDate?.()?.toISOString?.() || ''
+          : new Date().toISOString(),
+        expires_at: g.expires_at || '',
+      };
+    });
+    setGroups(groupItems);
+
+    // --- Users table ---
+    const groupMap = new Map<string, any>();
+    const hostUserIdsFromGroups = new Set<string>();
+    groupsDocs.forEach((d) => {
+      groupMap.set(d.id, d.data);
+      if (d.data.host_id) hostUserIdsFromGroups.add(d.data.host_id);
+    });
+
+    const userItems: AdminUserItem[] = usersDocs.map((d) => {
+      const u = d.data;
+      const userGroup = u.current_group_id ? groupMap.get(u.current_group_id) : null;
+      const isHost = hostUserIdsFromGroups.has(d.id) || Boolean(u.is_host);
+
+      const createdDate = u.created_at
+        ? typeof u.created_at === 'string'
+          ? u.created_at
+          : u.created_at.toDate?.()?.toISOString?.() || ''
+        : '';
+      const lastActiveDate = u.last_active_at
+        ? typeof u.last_active_at === 'string'
+          ? u.last_active_at
+          : u.last_active_at.toDate?.()?.toISOString?.() || ''
+        : null;
+
+      return {
+        id: d.id,
+        email: u.email || '',
+        username: u.username || u.email?.split('@')[0] || 'Anonymous',
+        role: u.role || (isHost ? 'cr' : 'student'),
+        is_host: isHost,
+        current_group_id: u.current_group_id || null,
+        group_name: userGroup?.name || null,
+        group_code: userGroup?.code || null,
+        created_at: createdDate || new Date().toISOString(),
+        last_active_at: lastActiveDate,
+      };
+    });
+    setUsers(userItems);
+
+    setDataError(null);
+    console.log(
+      `[Admin Dashboard] Real-time update: ${totalGroups} groups, ${totalUsers} users, ${totalMembers} members, ${totalCRs} CRs, ${totalHosts} hosts.`
+    );
+  }, []);
+
+  // Load only audit logs + system config (non-real-time pieces)
+  const loadAuditAndSystem = useCallback(async (activeUser?: FirebaseUser | null) => {
     const userToUse = activeUser || adminUserRef.current || auth?.currentUser;
 
     if (!userToUse) {
@@ -65,23 +188,12 @@ export const AdminLayout: React.FC = () => {
     }
 
     setLoadingData(true);
-    setDataError(null);
-
-    console.log('[Admin Dashboard] Fetching dashboard data directly from Firestore...');
 
     try {
-      const [statsRes, groupsRes, usersRes, auditRes] = await Promise.all([
+      const [statsRes, auditRes] = await Promise.all([
         adminApi.getStats(userToUse).catch((err) => {
-          console.warn('[Admin Dashboard] Stats error:', err);
+          console.warn('[Admin Dashboard] System config error:', err);
           return null;
-        }),
-        adminApi.getGroups(userToUse).catch((err) => {
-          console.warn('[Admin Dashboard] Groups error:', err);
-          return [];
-        }),
-        adminApi.getUsers(userToUse).catch((err) => {
-          console.warn('[Admin Dashboard] Users error:', err);
-          return [];
         }),
         adminApi.getAuditLogs(userToUse).catch((err) => {
           console.warn('[Admin Dashboard] Audit logs error:', err);
@@ -90,31 +202,73 @@ export const AdminLayout: React.FC = () => {
       ]);
 
       if (statsRes) {
-        setStats(statsRes.stats);
         setSystem(statsRes.system);
-        setDataError(null);
-      } else {
-        setDataError('Failed to load dashboard data. Please check connection and permissions.');
+        // Update appStatus from system config
+        setStats((prev) => prev ? { ...prev, appStatus: statsRes.stats.appStatus } : null);
       }
 
-      if (groupsRes) {
-        setGroups(groupsRes);
-      }
-      if (usersRes) {
-        setUsers(usersRes);
-      }
       if (auditRes) {
         setAuditLogs(auditRes);
       }
 
-      console.log('[Admin Dashboard] Dashboard data sync completed.');
+      console.log('[Admin Dashboard] Audit logs and system config loaded.');
     } catch (err: any) {
-      console.error('[Admin Dashboard] Exception in loadDashboardData:', err);
-      setDataError(err.message || 'Failed to sync admin data.');
+      console.error('[Admin Dashboard] Exception in loadAuditAndSystem:', err);
     } finally {
       setLoadingData(false);
     }
   }, []);
+
+  // Real-time Firestore listeners — auth-gated, only attach when admin is confirmed
+  useEffect(() => {
+    if (authState !== 'authorized' || !db) return;
+
+    console.log('[Admin Dashboard] Attaching real-time Firestore listeners...');
+
+    const unsubGroups = onSnapshot(
+      collection(db, 'groups'),
+      (snap: QuerySnapshot<DocumentData>) => {
+        groupsDocsRef.current = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+        recomputeFromSnapshots();
+      },
+      (err) => {
+        console.warn('[Admin Dashboard] groups onSnapshot error:', err);
+      }
+    );
+
+    const unsubUsers = onSnapshot(
+      collection(db, 'users'),
+      (snap: QuerySnapshot<DocumentData>) => {
+        usersDocsRef.current = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+        recomputeFromSnapshots();
+      },
+      (err) => {
+        console.warn('[Admin Dashboard] users onSnapshot error:', err);
+      }
+    );
+
+    const unsubMembers = onSnapshot(
+      collection(db, 'groupMembers'),
+      (snap: QuerySnapshot<DocumentData>) => {
+        membersDocsRef.current = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+        recomputeFromSnapshots();
+      },
+      (err) => {
+        console.warn('[Admin Dashboard] groupMembers onSnapshot error:', err);
+      }
+    );
+
+    return () => {
+      console.log('[Admin Dashboard] Detaching real-time Firestore listeners.');
+      unsubGroups();
+      unsubUsers();
+      unsubMembers();
+      // Clear refs on cleanup to avoid stale data on re-auth
+      groupsDocsRef.current = [];
+      usersDocsRef.current = [];
+      membersDocsRef.current = [];
+    };
+  }, [authState, recomputeFromSnapshots]);
 
   // Subscribe to Firebase Auth state changes
   useEffect(() => {
@@ -165,7 +319,7 @@ export const AdminLayout: React.FC = () => {
           }
 
           // Trigger data query ONLY AFTER session and authorization are confirmed
-          loadDashboardData(user);
+          loadAuditAndSystem(user);
         } else {
           setAuthState('unauthorized');
           setAdminUser(null);
@@ -185,7 +339,7 @@ export const AdminLayout: React.FC = () => {
       isMounted = false;
       unsubscribe();
     };
-  }, [loadDashboardData]);
+  }, [loadAuditAndSystem]);
 
   // Sync tab with URL on popstate
   useEffect(() => {
@@ -411,7 +565,7 @@ export const AdminLayout: React.FC = () => {
             auditLogs={auditLogs}
             loading={loadingData}
             error={dataError}
-            onRetry={() => loadDashboardData(adminUser)}
+            onRetry={() => loadAuditAndSystem(adminUser)}
             onNavigateTab={handleTabChange}
           />
         )}
@@ -421,7 +575,7 @@ export const AdminLayout: React.FC = () => {
             groups={groups}
             loading={loadingData}
             error={dataError}
-            onRefresh={() => loadDashboardData(adminUser)}
+            onRefresh={() => loadAuditAndSystem(adminUser)}
           />
         )}
 
@@ -430,7 +584,7 @@ export const AdminLayout: React.FC = () => {
             users={users}
             loading={loadingData}
             error={dataError}
-            onRefresh={() => loadDashboardData(adminUser)}
+            onRefresh={() => loadAuditAndSystem(adminUser)}
           />
         )}
 
@@ -439,7 +593,7 @@ export const AdminLayout: React.FC = () => {
             system={system}
             onUpdateSuccess={(newConfig) => {
               setSystem(newConfig);
-              loadDashboardData(adminUser);
+              loadAuditAndSystem(adminUser);
             }}
             showToast={showToast}
           />
@@ -449,7 +603,7 @@ export const AdminLayout: React.FC = () => {
           <AdminAuditTab
             logs={auditLogs}
             loading={loadingData}
-            onRefresh={() => loadDashboardData(adminUser)}
+            onRefresh={() => loadAuditAndSystem(adminUser)}
           />
         )}
       </div>
