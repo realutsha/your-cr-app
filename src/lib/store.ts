@@ -398,22 +398,56 @@ class AppStore {
     const currentUserId = this.currentUser.id;
     const currentGroupId = this.currentUser.current_group_id;
 
+    // Immediately isolate in-memory state to the active group
+    if (currentGroupId) {
+      this.courses = this.courses.filter((c) => c.group_id === currentGroupId);
+      this.updates = this.updates.filter((u) => u.group_id === currentGroupId);
+      this.views = this.views.filter((v) => !v.update_id || this.updates.some((u) => u.id === v.update_id));
+      this.members = this.members.filter((m) => m.group_id === currentGroupId);
+      this.requests = this.requests.filter((r) => r.group_id === currentGroupId);
+    } else {
+      this.courses = [];
+      this.updates = [];
+      this.views = [];
+      this.members = [];
+      this.requests = [];
+    }
+
     // Listen to current user document
     try {
       const userUnsub = onSnapshot(
         doc(db, 'users', currentUserId),
-        (docSnap) => {
+        async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as User;
             if (this.currentUser && this.currentUser.id === currentUserId) {
               const previousGroupId = this.currentUser.current_group_id;
+              const newGroupId = data.current_group_id ?? null;
               this.currentUser.role = data.role || this.currentUser.role;
-              this.currentUser.current_group_id = data.current_group_id ?? null;
-              this.persist();
-              this.notify();
+              this.currentUser.current_group_id = newGroupId;
 
-              if (previousGroupId !== this.currentUser.current_group_id) {
+              if (previousGroupId !== newGroupId) {
+                // Active group has changed -> proactively fetch new group document if not in memory
+                if (newGroupId && db) {
+                  const existing = this.groups.find((g) => g.id === newGroupId);
+                  if (!existing) {
+                    try {
+                      const gSnap = await getDoc(doc(db, 'groups', newGroupId));
+                      if (gSnap.exists()) {
+                        const gData = { id: gSnap.id, ...gSnap.data() } as Group;
+                        const idx = this.groups.findIndex((g) => g.id === newGroupId);
+                        if (idx >= 0) this.groups[idx] = gData;
+                        else this.groups.push(gData);
+                      }
+                    } catch (err) {
+                      console.warn('[Firestore] Failed to fetch new group doc:', err);
+                    }
+                  }
+                }
                 this.attachFirestoreListeners();
+              } else {
+                this.persist();
+                this.notify();
               }
             }
           }
@@ -1085,6 +1119,11 @@ class AppStore {
       }
     }
 
+    this.courses = [];
+    this.updates = [];
+    this.views = [];
+    this.members = [];
+    this.requests = [];
     this.persist();
     this.notify();
     this.clearFirestoreListeners();
@@ -1107,11 +1146,11 @@ class AppStore {
     }
 
     const currentUserId = this.currentUser.id;
-
     const dbInstance = db;
+
     if (dbInstance) {
       try {
-        // Collect all related documents across collections for this group
+        // Step 1: Collect all related documents across collections for this group while group is active
         const [
           coursesSnap,
           updatesSnap,
@@ -1126,33 +1165,48 @@ class AppStore {
           getDocs(query(collection(dbInstance, 'updateViews'), where('group_id', '==', groupId))),
         ]);
 
-        // Batch delete child documents and reset member profiles
-        const batch = writeBatch(dbInstance);
-
-        coursesSnap.forEach((d) => batch.delete(d.ref));
-        updatesSnap.forEach((d) => batch.delete(d.ref));
+        // Step 2: Reset members' current_group_id while group document still exists
+        const memberResetPromises: Promise<any>[] = [];
         membersSnap.forEach((d) => {
           const memberData = d.data() as GroupMember;
           if (memberData && memberData.user_id && memberData.user_id !== currentUserId) {
-            batch.update(doc(dbInstance, 'users', memberData.user_id), {
-              current_group_id: null,
-            });
+            memberResetPromises.push(
+              updateDoc(doc(dbInstance, 'users', memberData.user_id), {
+                current_group_id: null,
+              }).catch(() => {})
+            );
           }
-          batch.delete(d.ref);
         });
-        requestsSnap.forEach((d) => batch.delete(d.ref));
-        viewsSnap.forEach((d) => batch.delete(d.ref));
+        if (memberResetPromises.length > 0) {
+          await Promise.allSettled(memberResetPromises);
+        }
 
-        // Delete parent group document
-        batch.delete(doc(dbInstance, 'groups', groupId));
+        // Step 3: Delete all child documents in batches while isGroupHost(groupId) is still valid
+        const childDocRefs = [
+          ...coursesSnap.docs.map((d) => d.ref),
+          ...updatesSnap.docs.map((d) => d.ref),
+          ...viewsSnap.docs.map((d) => d.ref),
+          ...requestsSnap.docs.map((d) => d.ref),
+          ...membersSnap.docs.map((d) => d.ref),
+        ];
 
-        // Update CR's user document
-        batch.update(doc(dbInstance, 'users', currentUserId), {
+        // Chunk deletes to respect Firestore's batch limits (400 per batch)
+        const BATCH_SIZE = 400;
+        for (let i = 0; i < childDocRefs.length; i += BATCH_SIZE) {
+          const chunk = childDocRefs.slice(i, i + BATCH_SIZE);
+          const childBatch = writeBatch(dbInstance);
+          chunk.forEach((ref) => childBatch.delete(ref));
+          await childBatch.commit();
+        }
+
+        // Step 4: Delete the parent group document LAST
+        await deleteDoc(doc(dbInstance, 'groups', groupId));
+
+        // Step 5: Update the CR host's user document
+        await updateDoc(doc(dbInstance, 'users', currentUserId), {
           current_group_id: null,
           role: 'student',
-        });
-
-        await batch.commit();
+        }).catch(() => {});
       } catch (err: unknown) {
         console.error('Failed to delete group from Firestore:', err);
         const e = err as { message?: string };
@@ -1163,13 +1217,13 @@ class AppStore {
       }
     }
 
-    // Update local state and memory store
+    // Step 6: Clear in-memory state and local storage
     this.groups = this.groups.filter((g) => g.id !== groupId);
-    this.courses = this.courses.filter((c) => c.group_id !== groupId);
-    this.updates = this.updates.filter((u) => u.group_id !== groupId);
-    this.members = this.members.filter((m) => m.group_id !== groupId);
-    this.requests = this.requests.filter((r) => r.group_id !== groupId);
-    this.views = this.views.filter((v) => !v.update_id || this.updates.some((u) => u.id === v.update_id));
+    this.courses = [];
+    this.updates = [];
+    this.members = [];
+    this.requests = [];
+    this.views = [];
 
     if (this.currentUser.current_group_id === groupId) {
       this.currentUser.current_group_id = null;

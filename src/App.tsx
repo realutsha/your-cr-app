@@ -178,6 +178,18 @@ export function App() {
     };
   }, [showToast]);
 
+  // Reset active course, category, and sheet when active class/group changes
+  const currentGroupId = currentGroup?.id;
+  const prevGroupIdRef = useRef<string | undefined>(currentGroupId);
+  useEffect(() => {
+    if (prevGroupIdRef.current !== currentGroupId) {
+      prevGroupIdRef.current = currentGroupId;
+      setActiveCourseId(null);
+      setActiveCategory(null);
+      setSelectedUpdate(null);
+    }
+  }, [currentGroupId]);
+
   const isCR = currentUser ? currentUser.role === 'cr' || currentUser.id === currentGroup?.host_id : false;
   const totalUnreadCount = store.getTotalUnreadCount();
   const activeCourse = courses.find((c) => c.id === activeCourseId);
