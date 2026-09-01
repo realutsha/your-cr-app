@@ -21,37 +21,39 @@ export function CourseScreen({
 }: CourseScreenProps) {
   return (
     <div>
-      {/* Course Header */}
-      <div
+      {/* Top Header */}
+      <header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 20,
         }}
       >
         <button
           onClick={onBack}
+          aria-label="Go back"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
-            color: 'var(--c-text)',
+            gap: 2,
+            color: 'var(--c-accent)',
             cursor: 'pointer',
             padding: '4px 0',
-            maxWidth: '80%',
+            maxWidth: '75%',
           }}
         >
-          <ChevronLeft size={20} strokeWidth={2} style={{ flexShrink: 0 }} />
+          <ChevronLeft size={22} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           <span
             style={{
               fontFamily: 'var(--font-head)',
-              fontSize: 18,
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
+              fontSize: 17,
+              fontWeight: 700,
+              color: 'var(--c-text)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              letterSpacing: '-0.015em',
             }}
           >
             {course.name}
@@ -59,30 +61,60 @@ export function CourseScreen({
         </button>
 
         {isCR && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               onClick={() => onEditCourse(course)}
               title="Edit course name"
-              style={{ color: 'var(--c-text-soft)', padding: 4 }}
+              style={{
+                color: 'var(--c-accent)',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--c-accent-bg)',
+                borderRadius: 8,
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
               <Edit3 size={16} />
             </button>
             <button
               onClick={() => onComposeForCourse(course)}
               title="New update for this course"
-              style={{ color: 'var(--c-text-soft)', padding: 4 }}
+              style={{
+                color: 'var(--c-accent)',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--c-accent-bg)',
+                borderRadius: 8,
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
-              <Plus size={19} strokeWidth={2} />
+              <Plus size={18} strokeWidth={2.2} />
             </button>
           </div>
         )}
-      </div>
+      </header>
 
-      {/* 4 Fixed Categories */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {CATEGORIES.map((cat) => {
+      {/* Course Categories Grouped List */}
+      <div
+        style={{
+          background: 'var(--c-card-bg)',
+          borderRadius: 16,
+          overflow: 'hidden',
+          border: '1px solid var(--c-hairline)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+        }}
+      >
+        {CATEGORIES.map((cat, idx) => {
           const count = store.getCategoryUpdateCount(course.id, cat.key);
           const unreadCount = store.getCategoryUnreadCount(course.id, cat.key);
+          const isLast = idx === CATEGORIES.length - 1;
+
           return (
             <button
               key={cat.key}
@@ -92,53 +124,50 @@ export function CourseScreen({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '20px 18px',
+                padding: '16px 18px',
                 background: 'var(--c-card-bg)',
-                border: `1px solid ${unreadCount > 0 ? 'var(--c-hairline-strong)' : 'var(--c-hairline)'}`,
-                borderRadius: 16,
+                borderBottom: isLast ? 'none' : '1px solid var(--c-hairline)',
                 cursor: 'pointer',
                 textAlign: 'left',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
-                transition: 'background 160ms ease, border-color 160ms ease',
+                transition: 'background 160ms ease',
               }}
             >
               <span
                 style={{
                   fontFamily: 'var(--font-head)',
                   fontSize: 17,
-                  fontWeight: 700,
+                  fontWeight: 500,
                   color: 'var(--c-text)',
+                  letterSpacing: '-0.01em',
                 }}
               >
                 {cat.label}
               </span>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {unreadCount > 0 && (
-                    <span
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: 999,
-                        background: 'var(--c-danger)',
-                        display: 'inline-block',
-                        flexShrink: 0,
-                      }}
-                    />
-                  )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {unreadCount > 0 && (
                   <span
                     style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 12.5,
-                      fontWeight: count > 0 ? 700 : 400,
-                      color: count > 0 ? 'var(--c-text)' : 'var(--c-text-faint)',
+                      width: 8,
+                      height: 8,
+                      borderRadius: 999,
+                      background: 'var(--c-danger)',
+                      display: 'inline-block',
+                      flexShrink: 0,
                     }}
-                  >
-                    {count}
-                  </span>
-                </div>
-                <ChevronRight size={16} color="var(--c-text-faint)" />
+                  />
+                )}
+                <span
+                  style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 15,
+                    fontWeight: count > 0 ? 600 : 400,
+                    color: count > 0 ? 'var(--c-text-soft)' : 'var(--c-text-faint)',
+                  }}
+                >
+                  {count}
+                </span>
+                <ChevronRight size={18} color="var(--c-text-faint)" strokeWidth={2} />
               </div>
             </button>
           );

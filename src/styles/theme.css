@@ -4,55 +4,55 @@
    ============================================================================== */
 
 :root {
-  --font-head: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-head: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --nav-h: 58px;
+  --nav-h: 60px;
 
-  /* Default Dark Tokens */
-  --c-bg: #0A0B0E;
-  --c-card-bg: #121318;
-  --c-card-bg-active: #181920;
-  --c-card-subtle: rgba(255, 255, 255, 0.03);
-  --c-hairline: rgba(255, 255, 255, 0.07);
-  --c-hairline-strong: rgba(255, 255, 255, 0.12);
-  --c-text: #F4F5F7;
-  --c-text-soft: rgba(244, 245, 247, 0.58);
-  --c-text-faint: rgba(244, 245, 247, 0.34);
-  --c-accent: #7C93E8;
-  --c-accent-bg: rgba(124, 147, 232, 0.12);
-  --c-accent-glow: rgba(124, 147, 232, 0.20);
-  --c-danger: #E8756A;
-  --c-danger-bg: rgba(232, 117, 106, 0.12);
-  --c-success: #5CD694;
-  --c-sheet-bg: #0A0B0E;
-  --c-toast-bg: #1B1C21;
-  --c-google-btn-bg: #16171B;
-  --c-backdrop: rgba(0, 0, 0, 0.68);
-  --c-code-pill-bg: #1A1B22;
+  /* Default Dark Tokens (Stitch iOS Dark) */
+  --c-bg: #000000;
+  --c-card-bg: #1C1C1E;
+  --c-card-bg-active: #2C2C2E;
+  --c-card-subtle: rgba(255, 255, 255, 0.05);
+  --c-hairline: rgba(84, 84, 88, 0.36);
+  --c-hairline-strong: rgba(255, 255, 255, 0.18);
+  --c-text: #FFFFFF;
+  --c-text-soft: rgba(235, 235, 245, 0.60);
+  --c-text-faint: rgba(235, 235, 245, 0.35);
+  --c-accent: #0A84FF;
+  --c-accent-bg: rgba(10, 132, 255, 0.14);
+  --c-accent-glow: rgba(10, 132, 255, 0.25);
+  --c-danger: #FF453A;
+  --c-danger-bg: rgba(255, 69, 58, 0.12);
+  --c-success: #30D158;
+  --c-sheet-bg: #1C1C1E;
+  --c-toast-bg: #2C2C2E;
+  --c-google-btn-bg: #1C1C1E;
+  --c-backdrop: rgba(0, 0, 0, 0.70);
+  --c-code-pill-bg: #2C2C2E;
 }
 
 [data-theme='light'] {
-  /* Intentional Light Tokens */
-  --c-bg: #F6F7FA;
+  /* Intentional Light Tokens (Stitch iOS Light) */
+  --c-bg: #F2F2F7;
   --c-card-bg: #FFFFFF;
-  --c-card-bg-active: #F1F3F7;
-  --c-card-subtle: rgba(0, 0, 0, 0.03);
-  --c-hairline: rgba(0, 0, 0, 0.08);
-  --c-hairline-strong: rgba(0, 0, 0, 0.14);
-  --c-text: #121316;
-  --c-text-soft: #5C606C;
-  --c-text-faint: #8E92A0;
-  --c-accent: #4A63D6;
-  --c-accent-bg: rgba(74, 99, 214, 0.10);
-  --c-accent-glow: rgba(74, 99, 214, 0.16);
-  --c-danger: #D9483B;
-  --c-danger-bg: rgba(217, 72, 59, 0.09);
-  --c-success: #2E9C62;
+  --c-card-bg-active: #F4F3F8;
+  --c-card-subtle: #F4F3F8;
+  --c-hairline: rgba(60, 60, 67, 0.12);
+  --c-hairline-strong: rgba(60, 60, 67, 0.22);
+  --c-text: #000000;
+  --c-text-soft: #3C3C43;
+  --c-text-faint: #767680;
+  --c-accent: #007AFF;
+  --c-accent-bg: rgba(0, 122, 255, 0.10);
+  --c-accent-glow: rgba(0, 122, 255, 0.20);
+  --c-danger: #FF3B30;
+  --c-danger-bg: rgba(255, 59, 48, 0.10);
+  --c-success: #34C759;
   --c-sheet-bg: #FFFFFF;
   --c-toast-bg: #1F2128;
   --c-google-btn-bg: #FFFFFF;
-  --c-backdrop: rgba(18, 19, 24, 0.45);
+  --c-backdrop: rgba(0, 0, 0, 0.45);
   --c-code-pill-bg: #EAECEF;
 }
 
@@ -118,5 +118,75 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* iOS 26 Inspired Typography */
+.font-large-title { 
+  font-size: 2.125rem; /* 34px */
+  font-weight: 700; 
+  line-height: 2.5rem; 
+  letter-spacing: -0.02em;
+}
+.font-title1 { 
+  font-size: 1.75rem; /* 28px */
+  font-weight: 700; 
+  line-height: 2.125rem; 
+  letter-spacing: -0.02em;
+}
+.font-title2 { 
+  font-size: 1.375rem; /* 22px */
+  font-weight: 600; 
+  line-height: 1.75rem; 
+  letter-spacing: -0.015em;
+}
+.font-headline { 
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 600; 
+  line-height: 1.375rem; 
+  letter-spacing: -0.41px;
+}
+.font-body { 
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 400; 
+  line-height: 1.375rem; 
+  letter-spacing: -0.41px;
+}
+.font-callout { 
+  font-size: 1rem; /* 16px */
+  font-weight: 400; 
+  line-height: 1.3125rem; 
+  letter-spacing: -0.32px;
+}
+.font-subhead { 
+  font-size: 0.9375rem; /* 15px */
+  font-weight: 400; 
+  line-height: 1.25rem; 
+  letter-spacing: -0.24px;
+}
+.font-footnote { 
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 400; 
+  line-height: 1.125rem; 
+  letter-spacing: -0.08px;
+}
+.font-caption1 { 
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500; 
+  line-height: 1rem; 
+  letter-spacing: 0;
+}
+.font-caption2 { 
+  font-size: 0.6875rem; /* 11px */
+  font-weight: 500; 
+  line-height: 0.8125rem; 
+  letter-spacing: 0.06px;
+}
+
+/* iOS Safe Areas & Blur */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0); }
+.ios-blur {
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
 }
 

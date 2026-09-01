@@ -1,6 +1,6 @@
 import { Home as HomeIcon, User as UserIcon } from 'lucide-react';
 
-export const NAV_H = 60;
+export const NAV_H = 64;
 
 interface BottomNavProps {
   screen: 'home' | 'profile';
@@ -15,16 +15,19 @@ export function BottomNav({ screen, setScreen, unreadCount }: BottomNavProps) {
   ];
 
   return (
-    <div
+    <nav
+      aria-label="Bottom Navigation"
       style={{
         position: 'fixed',
         left: 0,
         right: 0,
         bottom: 0,
-        borderTop: '1px solid var(--c-hairline, rgba(0, 0, 0, 0.07))',
-        background: 'var(--c-sheet-bg, #FFFFFF)',
+        borderTop: '1px solid var(--c-hairline)',
+        background: 'var(--c-sheet-bg)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         zIndex: 40,
-        boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.02)',
+        boxShadow: '0 -1px 8px rgba(0, 0, 0, 0.04)',
         transition: 'background 220ms ease',
       }}
     >
@@ -55,20 +58,21 @@ export function BottomNav({ screen, setScreen, unreadCount }: BottomNavProps) {
                 position: 'relative',
                 background: 'transparent',
                 border: 'none',
-                padding: '8px 0',
+                padding: '6px 0',
+                transition: 'color 150ms ease',
               }}
             >
               <Icon
                 size={22}
-                color={active ? 'var(--c-text, #1E2238)' : 'var(--c-text-faint, #8E92A0)'}
-                strokeWidth={active ? 2.1 : 1.75}
+                color={active ? 'var(--c-accent)' : 'var(--c-text-faint)'}
+                strokeWidth={active ? 2.4 : 1.8}
               />
               <span
                 style={{
                   fontFamily: 'var(--font-body)',
                   fontSize: 11,
                   fontWeight: active ? 600 : 500,
-                  color: active ? 'var(--c-text, #1E2238)' : 'var(--c-text-faint, #8E92A0)',
+                  color: active ? 'var(--c-accent)' : 'var(--c-text-faint)',
                   letterSpacing: '0.01em',
                 }}
               >
@@ -78,10 +82,10 @@ export function BottomNav({ screen, setScreen, unreadCount }: BottomNavProps) {
                 <span
                   style={{
                     position: 'absolute',
-                    top: 8,
-                    right: 'calc(50% - 18px)',
-                    width: 6,
-                    height: 6,
+                    top: 10,
+                    right: 'calc(50% - 16px)',
+                    width: 7,
+                    height: 7,
                     borderRadius: 999,
                     background: 'var(--c-danger)',
                   }}
@@ -91,6 +95,6 @@ export function BottomNav({ screen, setScreen, unreadCount }: BottomNavProps) {
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }

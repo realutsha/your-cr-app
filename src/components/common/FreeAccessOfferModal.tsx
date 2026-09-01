@@ -76,13 +76,13 @@ export function FreeAccessOfferModal({ onClaim }: FreeAccessOfferModalProps) {
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 350,
-          background: 'var(--c-card-bg, #121318)',
-          border: '1px solid var(--c-hairline-strong, rgba(255, 255, 255, 0.14))',
+          maxWidth: 380,
+          background: 'var(--c-card-bg)',
+          border: '1px solid var(--c-hairline-strong)',
           borderRadius: 24,
-          padding: '28px 24px 22px',
+          padding: '30px 24px 22px',
           textAlign: 'center',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.42)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
           transform: shown ? 'scale(1) translateY(0)' : 'scale(0.93) translateY(12px)',
           opacity: shown ? 1 : 0,
           transition: 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease',
@@ -93,68 +93,80 @@ export function FreeAccessOfferModal({ onClaim }: FreeAccessOfferModalProps) {
       >
         {/* Floating Graduation Cap Badge Icon */}
         <div
+          aria-hidden="true"
           style={{
-            width: 58,
-            height: 58,
+            width: 64,
+            height: 64,
             borderRadius: '50%',
-            background: 'var(--c-accent-bg, rgba(124, 147, 232, 0.12))',
-            border: '1.5px solid var(--c-accent, #7C93E8)',
+            border: '2px solid var(--c-accent-glow)',
+            background: 'var(--c-accent-bg)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 26,
             marginBottom: 16,
-            boxShadow: '0 4px 20px var(--c-accent-glow, rgba(124, 147, 232, 0.2))',
+            position: 'relative',
           }}
         >
-          🎓
+          <svg
+            fill="none"
+            height="28"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            width="28"
+            style={{ color: 'var(--c-text)' }}
+          >
+            <path d="M2 12l10-7 10 7-10 7-10-7z" />
+            <path d="M12 22v-7" />
+            <path d="M22 12v6" />
+          </svg>
         </div>
 
         {/* Offer Tag */}
-        <div
+        <span
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            background: 'var(--c-accent-bg, rgba(124, 147, 232, 0.12))',
-            border: '1px solid var(--c-accent, #7C93E8)',
-            borderRadius: 100,
             padding: '4px 12px',
             fontSize: 11,
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
-            color: 'var(--c-accent, #7C93E8)',
-            marginBottom: 12,
+            color: 'var(--c-accent)',
+            border: '1px solid var(--c-accent-glow)',
+            borderRadius: 999,
+            marginBottom: 14,
+            background: 'var(--c-accent-bg)',
           }}
         >
           Semester Access
-        </div>
+        </span>
 
         {/* Main Heading */}
-        <h2
+        <h1
           id="free-access-title"
           style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 21,
-            fontWeight: 800,
+            fontSize: 28,
+            fontWeight: 700,
+            lineHeight: 1.2,
             letterSpacing: '-0.02em',
-            color: 'var(--c-text, #F4F5F7)',
-            margin: '0 0 8px',
-            lineHeight: 1.25,
+            color: 'var(--c-text)',
+            margin: '0 0 10px',
           }}
         >
           Get Your 4-Month Free Access
-        </h2>
+        </h1>
 
         {/* Subtitle */}
         <p
           id="free-access-subtitle"
           style={{
             fontFamily: 'var(--font-body)',
-            fontSize: 13.5,
+            fontSize: 16,
             fontWeight: 400,
-            color: 'var(--c-text-soft, rgba(244, 245, 247, 0.6))',
-            margin: '0 0 24px',
+            color: 'var(--c-text-soft)',
+            margin: '0 0 28px',
             lineHeight: 1.45,
           }}
         >
@@ -170,16 +182,16 @@ export function FreeAccessOfferModal({ onClaim }: FreeAccessOfferModalProps) {
           style={{
             width: '100%',
             fontFamily: 'var(--font-body)',
-            fontSize: 14.5,
-            fontWeight: 600,
+            fontSize: 17,
+            fontWeight: 500,
             color: '#FFFFFF',
-            background: 'var(--c-accent, #7C93E8)',
+            background: 'var(--c-accent)',
             border: 'none',
             borderRadius: 14,
-            padding: '12px 20px',
+            padding: '14px 18px',
             cursor: claiming ? 'default' : 'pointer',
             opacity: claiming ? 0.8 : 1,
-            boxShadow: '0 4px 14px var(--c-accent-glow, rgba(124, 147, 232, 0.3))',
+            boxShadow: '0 2px 10px var(--c-accent-glow)',
             transition: 'opacity 150ms ease, transform 150ms ease',
             marginBottom: 12,
           }}
@@ -196,25 +208,25 @@ export function FreeAccessOfferModal({ onClaim }: FreeAccessOfferModalProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 8,
+            gap: 10,
             fontFamily: 'var(--font-body)',
-            fontSize: 13,
+            fontSize: 16,
             fontWeight: 500,
-            color: 'var(--c-text, #F4F5F7)',
-            background: 'var(--c-card-subtle, rgba(255, 255, 255, 0.04))',
-            border: '1px solid var(--c-hairline, rgba(255, 255, 255, 0.08))',
-            borderRadius: 12,
-            padding: '10px 16px',
+            color: 'var(--c-text)',
+            background: 'var(--c-card-bg)',
+            border: '1px solid var(--c-hairline-strong)',
+            borderRadius: 14,
+            padding: '13px 18px',
             cursor: 'pointer',
             transition: 'background 150ms ease, border-color 150ms ease',
           }}
         >
           <svg
-            width="16"
-            height="16"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
-            fill="currentColor"
-            style={{ color: '#1877F2', flexShrink: 0 }}
+            fill="#1877F2"
+            style={{ flexShrink: 0 }}
           >
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
           </svg>

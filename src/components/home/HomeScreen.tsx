@@ -1,5 +1,4 @@
-import React from 'react';
-import { BookOpen, ChevronRight, Compass, FolderPlus, Plus, Share2, Sparkles } from 'lucide-react';
+import { BookOpen, ChevronRight, FolderPlus, Plus } from 'lucide-react';
 import type { Course, Group } from '../../types';
 import { store } from '../../lib/store';
 import { getExpirationCountdown } from '../../lib/auth';
@@ -13,79 +12,6 @@ interface HomeScreenProps {
   onManageCourses: () => void;
 }
 
-interface CardTheme {
-  bg: string;
-  borderColor: string;
-  iconColor: string;
-  dividerColor: string;
-  textColor: string;
-  badgeBg: string;
-  badgeColor: string;
-  arrowColor: string;
-  bgPattern?: string;
-  bgSize?: string;
-  Icon: React.ComponentType<{ size?: number; strokeWidth?: number; color?: string; style?: React.CSSProperties }>;
-}
-
-const CARD_THEMES: CardTheme[] = [
-  // 1. Mint / Seafoam (Matches card 1 from screenshot)
-  {
-    bg: '#EBF7F5',
-    borderColor: '#9BDAD0',
-    iconColor: '#60AB9B',
-    dividerColor: 'rgba(96, 171, 155, 0.35)',
-    textColor: '#192C29',
-    badgeBg: '#B6E6DD',
-    badgeColor: '#145D51',
-    arrowColor: '#284640',
-    bgPattern: 'linear-gradient(to right, rgba(0, 160, 120, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 160, 120, 0.05) 1px, transparent 1px)',
-    bgSize: '12px 12px',
-    Icon: BookOpen,
-  },
-  // 2. Lavender / Purple (Matches card 2 from screenshot)
-  {
-    bg: '#F2EFFC',
-    borderColor: '#BEB2E9',
-    iconColor: '#8071BB',
-    dividerColor: 'rgba(128, 113, 187, 0.35)',
-    textColor: '#231D3A',
-    badgeBg: '#4B427B',
-    badgeColor: '#FFFFFF',
-    arrowColor: '#362E56',
-    bgPattern: 'radial-gradient(circle at 85% 50%, rgba(120, 90, 200, 0.06) 0%, transparent 60%), radial-gradient(circle at 15% 50%, rgba(120, 90, 200, 0.04) 0%, transparent 60%)',
-    bgSize: '100% 100%',
-    Icon: Share2,
-  },
-  // 3. Soft Sky Blue
-  {
-    bg: '#EDF5FD',
-    borderColor: '#ADD3F7',
-    iconColor: '#5392CE',
-    dividerColor: 'rgba(83, 146, 206, 0.35)',
-    textColor: '#182C40',
-    badgeBg: '#366898',
-    badgeColor: '#FFFFFF',
-    arrowColor: '#21405F',
-    bgPattern: 'linear-gradient(to right, rgba(40, 120, 220, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(40, 120, 220, 0.04) 1px, transparent 1px)',
-    bgSize: '12px 12px',
-    Icon: Compass,
-  },
-  // 4. Warm Amber / Peach
-  {
-    bg: '#FDF6EC',
-    borderColor: '#EFCFA6',
-    iconColor: '#D38A44',
-    dividerColor: 'rgba(211, 138, 68, 0.35)',
-    textColor: '#402913',
-    badgeBg: '#E2A05F',
-    badgeColor: '#FFFFFF',
-    arrowColor: '#553416',
-    bgPattern: 'radial-gradient(circle at 85% 50%, rgba(220, 140, 60, 0.06) 0%, transparent 60%)',
-    bgSize: '100% 100%',
-    Icon: Sparkles,
-  },
-];
-
 export function HomeScreen({
   group,
   courses,
@@ -97,7 +23,7 @@ export function HomeScreen({
   // Expiration countdown (e.g. "7 days remaining", "6 days remaining", etc. in final week)
   const countdown = getExpirationCountdown(group.expires_at);
 
-  // Format section header e.g. "Courses Section - i"
+  // Format section header e.g. "Courses — Section 21"
   const rawName = (group.name || '').trim();
   const displaySectionHeader = rawName.toLowerCase().startsWith('courses')
     ? rawName
@@ -108,25 +34,27 @@ export function HomeScreen({
   return (
     <div style={{ paddingTop: 4 }}>
       {/* 1. ClassMate Main Brand Header */}
-      <div
+      <header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 28,
+          marginBottom: 24,
         }}
       >
-        <div
+        <h1
           style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 28,
-            fontWeight: 800,
+            fontSize: 34,
+            fontWeight: 700,
             letterSpacing: '-0.025em',
-            color: 'var(--c-text, #1E2238)',
+            color: 'var(--c-text)',
+            margin: 0,
+            lineHeight: 1.15,
           }}
         >
           ClassMate
-        </div>
+        </h1>
 
         {countdown.isFinalWeek && (
           <div
@@ -134,11 +62,11 @@ export function HomeScreen({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.25)',
+              background: 'rgba(255, 59, 48, 0.1)',
+              border: '1px solid rgba(255, 59, 48, 0.25)',
               borderRadius: 20,
               padding: '4px 10px',
-              color: 'var(--c-danger, #ef4444)',
+              color: 'var(--c-danger)',
               fontSize: 12,
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
@@ -147,74 +75,88 @@ export function HomeScreen({
             <span>⏳ {countdown.label}</span>
           </div>
         )}
-      </div>
+      </header>
 
-      {/* 2. Courses Section Header & Actions */}
+      {/* 2. Courses Section Header & CR Actions */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 16,
+          marginBottom: 12,
+          paddingLeft: 4,
         }}
       >
-        <span
+        <h2
           style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 18,
-            fontWeight: 700,
-            color: 'var(--c-text, #1E2238)',
+            fontSize: 22,
+            fontWeight: 600,
+            color: 'var(--c-text)',
             letterSpacing: '-0.015em',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             maxWidth: '75%',
+            margin: 0,
           }}
         >
           {displaySectionHeader}
-        </span>
+        </h2>
 
         {isCR && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               onClick={onManageCourses}
               title="Add or manage courses"
               style={{
-                color: 'var(--c-text, #1E2238)',
-                padding: 3,
+                color: 'var(--c-accent)',
+                padding: 4,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'transparent',
+                background: 'var(--c-accent-bg)',
+                borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
               }}
             >
-              <FolderPlus size={20} strokeWidth={2} />
+              <FolderPlus size={18} strokeWidth={2} />
             </button>
             <button
               onClick={onCompose}
               title="New academic update"
               style={{
-                color: 'var(--c-text, #1E2238)',
-                padding: 3,
+                color: 'var(--c-accent)',
+                padding: 4,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'transparent',
+                background: 'var(--c-accent-bg)',
+                borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
               }}
             >
-              <Plus size={22} strokeWidth={2.2} />
+              <Plus size={19} strokeWidth={2.2} />
             </button>
           </div>
         )}
       </div>
 
+      {/* 3. Course List */}
       {courses.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '56px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13.5, color: 'var(--c-text-faint)', marginBottom: 14 }}>
+        <div
+          style={{
+            background: 'var(--c-card-bg)',
+            borderRadius: 16,
+            border: '1px solid var(--c-hairline)',
+            textAlign: 'center',
+            padding: '48px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--c-text-faint)', marginBottom: 16 }}>
             {isCR ? 'No courses added yet. Define courses for your class.' : 'No courses created for this class yet.'}
           </div>
           {isCR && (
@@ -222,14 +164,15 @@ export function HomeScreen({
               onClick={onManageCourses}
               style={{
                 fontFamily: 'var(--font-body)',
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 600,
                 color: '#FFFFFF',
                 background: 'var(--c-accent)',
-                padding: '9px 16px',
-                borderRadius: 10,
+                padding: '10px 18px',
+                borderRadius: 12,
                 border: 'none',
                 cursor: 'pointer',
+                boxShadow: '0 2px 8px var(--c-accent-glow)',
               }}
             >
               Add first course
@@ -237,12 +180,18 @@ export function HomeScreen({
           )}
         </div>
       ) : (
-        /* 3. List of Course Cards Matching Reference */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div
+          style={{
+            background: 'var(--c-card-bg)',
+            borderRadius: 16,
+            overflow: 'hidden',
+            border: '1px solid var(--c-hairline)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+          }}
+        >
           {courses.map((course, idx) => {
             const updateCount = store.getCourseUpdateCount(course.id);
-            const theme = CARD_THEMES[idx % CARD_THEMES.length];
-            const CardIcon = theme.Icon;
+            const isLast = idx === courses.length - 1;
 
             return (
               <button
@@ -253,55 +202,42 @@ export function HomeScreen({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '16px 18px',
-                  background: theme.bg,
-                  backgroundImage: theme.bgPattern,
-                  backgroundSize: theme.bgSize,
-                  border: `1.5px solid ${theme.borderColor}`,
-                  borderRadius: 16,
+                  padding: '14px 16px',
+                  background: 'var(--c-card-bg)',
+                  borderBottom: isLast ? 'none' : '1px solid var(--c-hairline)',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
-                  transition: 'transform 140ms ease, box-shadow 140ms ease',
-                  outline: 'none',
+                  transition: 'background 160ms ease',
                 }}
               >
-                {/* Left Part: Icon + Divider + Course Name */}
-                <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
+                {/* Left Part: Icon + Course Name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
                   <div
                     style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background: 'var(--c-accent-bg)',
+                      color: 'var(--c-accent)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: 28,
-                      height: 28,
                       flexShrink: 0,
-                      color: theme.iconColor,
                     }}
                   >
-                    <CardIcon size={22} strokeWidth={1.8} />
+                    <BookOpen size={20} strokeWidth={2} />
                   </div>
-
-                  <div
-                    style={{
-                      width: 1,
-                      height: 26,
-                      background: theme.dividerColor,
-                      margin: '0 14px',
-                      flexShrink: 0,
-                    }}
-                  />
 
                   <span
                     style={{
                       fontFamily: 'var(--font-head)',
-                      fontSize: 16,
-                      fontWeight: 700,
-                      color: theme.textColor,
+                      fontSize: 17,
+                      fontWeight: 600,
+                      color: 'var(--c-text)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      letterSpacing: '-0.01em',
+                      letterSpacing: '-0.015em',
                     }}
                   >
                     {course.name}
@@ -310,25 +246,27 @@ export function HomeScreen({
 
                 {/* Right Part: Count Badge + Chevron Right */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 12 }}>
-                  <span
-                    style={{
-                      minWidth: 26,
-                      height: 26,
-                      padding: '0 7px',
-                      borderRadius: 999,
-                      background: theme.badgeBg,
-                      color: theme.badgeColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 13,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {updateCount}
-                  </span>
-                  <ChevronRight size={18} color={theme.arrowColor} strokeWidth={2} />
+                  {updateCount > 0 && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: 22,
+                        height: 22,
+                        padding: '0 6px',
+                        borderRadius: 999,
+                        background: 'var(--c-accent)',
+                        color: '#FFFFFF',
+                        fontFamily: 'var(--font-body)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {updateCount}
+                    </span>
+                  )}
+                  <ChevronRight size={18} color="var(--c-text-faint)" strokeWidth={2} />
                 </div>
               </button>
             );

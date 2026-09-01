@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 interface IntroPopupProps {
   onDismiss: () => void;
@@ -64,39 +64,39 @@ export function IntroPopup({ onDismiss }: IntroPopupProps) {
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 330,
-          background: 'var(--c-card-bg, #121318)',
-          border: '1px solid var(--c-hairline-strong, rgba(255, 255, 255, 0.12))',
-          borderRadius: 22,
-          padding: '30px 24px 22px',
+          maxWidth: 340,
+          background: 'var(--c-card-bg)',
+          border: '1px solid var(--c-hairline-strong)',
+          borderRadius: 24,
+          padding: '32px 26px 24px',
           textAlign: 'center',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35)',
-          transform: shown ? 'scale(1) translateY(0)' : 'scale(0.94) translateY(8px)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
+          transform: shown ? 'scale(1) translateY(0)' : 'scale(0.93) translateY(12px)',
           opacity: shown ? 1 : 0,
           transition: 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease',
         }}
       >
-        <h2
+        <h1
           id="intro-popup-title"
           style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 22,
-            fontWeight: 800,
+            fontSize: 28,
+            fontWeight: 700,
             letterSpacing: '-0.02em',
             color: 'var(--c-text)',
             margin: '0 0 8px',
           }}
         >
           Class Mate
-        </h2>
+        </h1>
         <p
           style={{
             fontFamily: 'var(--font-body)',
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: 400,
             color: 'var(--c-text-soft)',
-            margin: '0 0 24px',
-            lineHeight: 1.4,
+            margin: '0 0 28px',
+            lineHeight: 1.45,
           }}
         >
           Never miss any deadline.
@@ -109,14 +109,15 @@ export function IntroPopup({ onDismiss }: IntroPopupProps) {
           style={{
             width: '100%',
             fontFamily: 'var(--font-body)',
-            fontSize: 14.5,
-            fontWeight: 600,
+            fontSize: 17,
+            fontWeight: 500,
             color: '#FFFFFF',
-            background: 'var(--c-accent, #7C93E8)',
+            background: 'var(--c-accent)',
             border: 'none',
-            borderRadius: 12,
-            padding: '11px 20px',
+            borderRadius: 14,
+            padding: '13px 20px',
             cursor: 'pointer',
+            boxShadow: '0 2px 10px var(--c-accent-glow)',
             transition: 'opacity 150ms ease, transform 150ms ease',
           }}
         >

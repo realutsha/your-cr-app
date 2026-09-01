@@ -29,16 +29,17 @@ export function CategoryScreen({
   return (
     <div>
       {/* Category Header */}
-      <div
+      <header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 16,
+          marginBottom: 6,
         }}
       >
         <button
           onClick={onBack}
+          aria-label="Go back"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -48,19 +49,19 @@ export function CategoryScreen({
             padding: '4px 0',
           }}
         >
-          <ChevronLeft size={20} strokeWidth={2} />
-          <div>
-            <span
-              style={{
-                fontFamily: 'var(--font-head)',
-                fontSize: 19,
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-              }}
-            >
-              {catMeta.label}
-            </span>
-          </div>
+          <ChevronLeft size={22} strokeWidth={2.5} style={{ color: 'var(--c-accent)' }} />
+          <h1
+            style={{
+              fontFamily: 'var(--font-head)',
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--c-text)',
+              margin: 0,
+            }}
+          >
+            {catMeta.label}
+          </h1>
         </button>
 
         {isCR && (
@@ -68,32 +69,49 @@ export function CategoryScreen({
             onClick={() => onComposeForCategory(course, categoryKey)}
             title={`New ${catMeta.label} update`}
             style={{
-              color: 'var(--c-text-soft)',
+              color: 'var(--c-accent)',
               padding: 4,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              background: 'var(--c-accent-bg)',
+              borderRadius: 8,
+              border: 'none',
+              cursor: 'pointer',
             }}
           >
-            <Plus size={19} strokeWidth={2} />
+            <Plus size={18} strokeWidth={2.2} />
           </button>
         )}
-      </div>
+      </header>
 
-      <div
+      {/* Course Breadcrumb */}
+      <p
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: 12.5,
+          fontSize: 15,
+          fontWeight: 500,
           color: 'var(--c-text-faint)',
-          marginBottom: 20,
+          marginTop: 0,
+          marginBottom: 24,
+          paddingLeft: 2,
         }}
       >
         {course.name}
-      </div>
+      </p>
 
       {allUpdates.length === 0 ? (
-        <div style={{ padding: '48px 16px', textAlign: 'center' }}>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 13.5, color: 'var(--c-text-faint)' }}>
+        <div
+          style={{
+            background: 'var(--c-card-bg)',
+            borderRadius: 16,
+            border: '1px solid var(--c-hairline)',
+            textAlign: 'center',
+            padding: '48px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--c-text-faint)' }}>
             {catMeta.emptyLabel}
           </span>
         </div>
@@ -101,58 +119,62 @@ export function CategoryScreen({
         <>
           {/* Upcoming Section */}
           {upcomingUpdates.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div
+            <section style={{ marginBottom: 28 }}>
+              <h2
                 style={{
                   fontFamily: 'var(--font-body)',
                   fontSize: 11,
                   fontWeight: 600,
                   textTransform: 'uppercase',
-                  letterSpacing: 0.5,
+                  letterSpacing: '0.06em',
                   color: 'var(--c-text-faint)',
-                  marginBottom: 10,
+                  marginBottom: 12,
                   paddingLeft: 2,
                 }}
               >
                 Upcoming ({upcomingUpdates.length})
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {upcomingUpdates.map((u) => (
+                  <UpdateCard
+                    key={u.id}
+                    u={u}
+                    onOpen={onOpenUpdate}
+                    topicLabel={catMeta.topicLabel}
+                  />
+                ))}
               </div>
-              {upcomingUpdates.map((u) => (
-                <UpdateCard
-                  key={u.id}
-                  u={u}
-                  onOpen={onOpenUpdate}
-                  topicLabel={catMeta.topicLabel}
-                />
-              ))}
-            </div>
+            </section>
           )}
 
           {/* Completed / Past Section */}
           {pastUpdates.length > 0 && (
-            <div style={{ marginTop: upcomingUpdates.length > 0 ? 28 : 0 }}>
-              <div
+            <section style={{ marginTop: upcomingUpdates.length > 0 ? 32 : 0 }}>
+              <h2
                 style={{
                   fontFamily: 'var(--font-body)',
                   fontSize: 11,
                   fontWeight: 600,
                   textTransform: 'uppercase',
-                  letterSpacing: 0.5,
+                  letterSpacing: '0.06em',
                   color: 'var(--c-text-faint)',
-                  marginBottom: 10,
+                  marginBottom: 12,
                   paddingLeft: 2,
                 }}
               >
                 Completed & Passed ({pastUpdates.length})
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {pastUpdates.map((u) => (
+                  <UpdateCard
+                    key={u.id}
+                    u={u}
+                    onOpen={onOpenUpdate}
+                    topicLabel={catMeta.topicLabel}
+                  />
+                ))}
               </div>
-              {pastUpdates.map((u) => (
-                <UpdateCard
-                  key={u.id}
-                  u={u}
-                  onOpen={onOpenUpdate}
-                  topicLabel={catMeta.topicLabel}
-                />
-              ))}
-            </div>
+            </section>
           )}
         </>
       )}

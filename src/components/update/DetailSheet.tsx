@@ -76,147 +76,183 @@ export function DetailSheet({ u, isCR, onClose, onEdit, onDelete }: DetailSheetP
     : 'Open Resource';
 
   return (
-    <div style={{ padding: '0 20px 32px' }}>
-      {/* Header */}
-      <div
+    <div style={{ padding: '4px 20px 32px' }}>
+      {/* Header Section */}
+      <header
         style={{
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
           gap: 12,
-          marginBottom: 14,
+          marginBottom: 16,
         }}
       >
         <div>
-          <div
+          <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: 600,
-              letterSpacing: 0.5,
+              letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: 'var(--c-accent)',
-              marginBottom: 4,
+              margin: '0 0 6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            {u.category ? u.category.toUpperCase() : u.section.toUpperCase()} · {u.course_name}
-          </div>
-          <div
+            <span>{u.category ? u.category : u.section}</span>
+            <span
+              style={{
+                width: 4,
+                height: 4,
+                borderRadius: '50%',
+                background: 'var(--c-accent)',
+                display: 'inline-block',
+              }}
+            />
+            <span>{u.course_name}</span>
+          </p>
+          <h1
+            id="modal-title"
             style={{
               fontFamily: 'var(--font-head)',
-              fontSize: 21,
-              fontWeight: 800,
+              fontSize: 28,
+              fontWeight: 700,
               color: 'var(--c-text)',
-              lineHeight: 1.25,
+              letterSpacing: '-0.025em',
+              lineHeight: 1.2,
+              margin: 0,
             }}
           >
             {u.title}
-          </div>
+          </h1>
         </div>
+
         <button
           onClick={onClose}
+          aria-label="Close modal"
           style={{
-            color: 'var(--c-text-faint)',
-            padding: 4,
-            flexShrink: 0,
+            color: 'var(--c-text-soft)',
+            background: 'var(--c-card-subtle)',
+            borderRadius: '50%',
+            padding: 8,
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             cursor: 'pointer',
+            flexShrink: 0,
+            transition: 'background 160ms ease',
           }}
         >
-          <X size={16} />
+          <X size={18} />
         </button>
-      </div>
+      </header>
 
-      {/* Date & Time Info Bar */}
+      {/* Metadata Section: Date & Time */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 13,
+          fontFamily: 'var(--font-body)',
+          fontSize: 15,
+          fontWeight: 500,
           color: 'var(--c-text-soft)',
-          marginBottom: 16,
+          marginBottom: 20,
         }}
       >
-        <Clock size={13} color="var(--c-text-faint)" />
+        <Clock size={16} color="var(--c-text-faint)" />
         <span>{u.date}</span>
-        {u.time && <span>· {u.time}</span>}
+        {u.time && (
+          <>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--c-text-faint)', margin: '0 2px' }} />
+            <span>{u.time}</span>
+          </>
+        )}
       </div>
 
-      {/* Topic / Syllabus Block */}
+      {/* Requirements Box */}
       {u.topic && (
-        <div
+        <section
           style={{
-            padding: '12px 14px',
-            background: 'var(--c-card-subtle)',
-            border: '1px solid var(--c-hairline-strong)',
-            borderRadius: 12,
-            marginBottom: 16,
+            border: '1px solid var(--c-hairline)',
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 20,
+            background: 'var(--c-card-bg)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
           }}
         >
-          <div
+          <h2
             style={{
               fontFamily: 'var(--font-body)',
               fontSize: 11,
               fontWeight: 600,
               textTransform: 'uppercase',
-              letterSpacing: 0.4,
+              letterSpacing: '0.08em',
               color: 'var(--c-text-faint)',
-              marginBottom: 4,
+              margin: '0 0 8px',
             }}
           >
             {topicLabel}
-          </div>
-          <div
+          </h2>
+          <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              fontWeight: 500,
+              fontSize: 16,
+              fontWeight: 400,
               color: 'var(--c-text)',
+              lineHeight: 1.5,
+              margin: 0,
             }}
           >
             {u.topic}
-          </div>
-        </div>
+          </p>
+        </section>
       )}
 
-      {/* Additional Description */}
+      {/* Additional Information Box */}
       {u.description && (
-        <div style={{ marginBottom: 18 }}>
-          <div
+        <section style={{ marginBottom: 20 }}>
+          <h2
             style={{
               fontFamily: 'var(--font-body)',
               fontSize: 11,
               fontWeight: 600,
               textTransform: 'uppercase',
-              letterSpacing: 0.4,
+              letterSpacing: '0.08em',
               color: 'var(--c-text-faint)',
-              marginBottom: 6,
+              margin: '0 0 8px',
             }}
           >
             Additional Information
-          </div>
-          <div
+          </h2>
+          <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 14,
+              fontSize: 16,
+              fontWeight: 400,
               color: 'var(--c-text-soft)',
-              lineHeight: 1.6,
+              lineHeight: 1.55,
               whiteSpace: 'pre-wrap',
+              margin: 0,
             }}
           >
             {u.description}
-          </div>
-        </div>
+          </p>
+        </section>
       )}
 
       {/* Status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: u.resource_url ? 16 : isCR ? 20 : 10 }}>
-        <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--c-text-faint)' }}>Status:</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: u.resource_url ? 20 : isCR ? 24 : 12 }}>
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 500, color: 'var(--c-text-soft)' }}>Status:</span>
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
+            fontFamily: 'var(--font-body)',
+            fontSize: 15,
             fontWeight: 600,
             textTransform: 'capitalize',
             color: u.status === 'completed' ? 'var(--c-success)' : u.status === 'cancelled' ? 'var(--c-danger)' : 'var(--c-accent)',
@@ -226,22 +262,22 @@ export function DetailSheet({ u, isCR, onClose, onEdit, onDelete }: DetailSheetP
         </span>
       </div>
 
-      {/* RESOURCE / LINK SECTION (Shown if URL exists) */}
+      {/* Resource Actions (if URL exists) */}
       {u.resource_url && (
-        <div style={{ marginBottom: isCR ? 20 : 10 }}>
-          <div
+        <section style={{ marginBottom: isCR ? 24 : 14 }}>
+          <h2
             style={{
               fontFamily: 'var(--font-body)',
               fontSize: 11,
               fontWeight: 600,
               textTransform: 'uppercase',
-              letterSpacing: 0.4,
+              letterSpacing: '0.08em',
               color: 'var(--c-text-faint)',
-              marginBottom: 8,
+              margin: '0 0 10px',
             }}
           >
             Resource
-          </div>
+          </h2>
           <a
             href={u.resource_url}
             target="_blank"
@@ -249,24 +285,25 @@ export function DetailSheet({ u, isCR, onClose, onEdit, onDelete }: DetailSheetP
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
-              fontFamily: 'var(--font-body)',
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--c-accent)',
-              background: 'var(--c-card-bg)',
-              border: '1px solid var(--c-hairline-strong)',
-              padding: '10px 16px',
+              padding: '10px 18px',
               borderRadius: 12,
+              border: '1px solid var(--c-hairline-strong)',
+              color: 'var(--c-accent)',
+              fontFamily: 'var(--font-body)',
+              fontWeight: 500,
+              fontSize: 16,
+              background: 'var(--c-card-bg)',
               textDecoration: 'none',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
               transition: 'all 160ms ease',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             }}
           >
             <span>{resourceLabel}</span>
-            <ExternalLink size={14} />
+            <ExternalLink size={16} />
           </a>
-        </div>
+        </section>
       )}
 
       {/* CR CONTROLS & VIEW TRACKING */}

@@ -64,70 +64,74 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
         minHeight: '100vh',
         background: 'var(--c-bg)',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         justifyContent: 'center',
         padding: '24px 20px',
         transition: 'background 220ms ease',
       }}
     >
-      <div
+      <main
         style={{
           width: '100%',
-          maxWidth: 400,
+          maxWidth: 420,
           margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        {/* Header / Branding */}
-        <div style={{ marginBottom: 32, textAlign: 'left' }}>
-          <div
+        {/* Header Section */}
+        <header style={{ marginBottom: 36, textAlign: 'left' }}>
+          <h2
             style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 600,
-              letterSpacing: 0.5,
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: 'var(--c-accent)',
-              marginBottom: 6,
+              marginBottom: 8,
             }}
           >
             Daffodil International University
-          </div>
-          <div
+          </h2>
+          <h1
             style={{
               fontFamily: 'var(--font-head)',
-              fontSize: 26,
-              fontWeight: 800,
+              fontSize: 34,
+              fontWeight: 700,
               color: 'var(--c-text)',
-              letterSpacing: '-0.02em',
-              lineHeight: 1.22,
+              letterSpacing: '-0.025em',
+              lineHeight: 1.15,
+              margin: 0,
             }}
           >
             Class Announcement Hub
-          </div>
-          <div
+          </h1>
+          <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 13.5,
+              fontSize: 17,
+              fontWeight: 400,
               color: 'var(--c-text-soft)',
-              marginTop: 6,
-              lineHeight: 1.5,
+              marginTop: 10,
+              marginBottom: 0,
+              lineHeight: 1.4,
             }}
           >
             Focused academic updates from your Class Representative.
-          </div>
-        </div>
+          </p>
+        </header>
 
         {/* Error Message Box */}
         {errorMsg && (
           <div
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 12.5,
+              fontSize: 13,
               color: 'var(--c-danger)',
               background: 'var(--c-danger-bg)',
               border: '1px solid var(--c-danger)',
-              borderRadius: 10,
-              padding: '12px 14px',
+              borderRadius: 12,
+              padding: '12px 16px',
               marginBottom: 20,
               lineHeight: 1.45,
               wordBreak: 'break-word',
@@ -137,139 +141,144 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, showToast }) =>
           </div>
         )}
 
-        {/* PRIMARY AUTH BUTTON: CONTINUE WITH GOOGLE */}
-        <button
-          id="google-signin-btn"
-          onClick={() => handleGoogleAuth(false)}
-          disabled={loading}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
-            background: 'var(--c-card-bg)',
-            border: '1px solid var(--c-hairline-strong)',
-            borderRadius: 14,
-            padding: '14px 18px',
-            fontFamily: 'var(--font-body)',
-            fontSize: 14.5,
-            fontWeight: 600,
-            color: 'var(--c-text)',
-            cursor: loading ? 'default' : 'pointer',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-            transition: 'background 180ms ease, border-color 180ms ease, transform 120ms ease',
-          }}
-        >
-          {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span
-                style={{
-                  width: 14,
-                  height: 14,
-                  border: '2px solid var(--c-text-soft)',
-                  borderTopColor: 'var(--c-accent)',
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                  animation: 'spin 0.8s linear infinite',
-                }}
-              />
-              <span>{authMode === 'redirect' ? 'Redirecting to Google...' : 'Authenticating with Google...'}</span>
-            </div>
-          ) : (
-            <>
-              <svg width="19" height="19" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-              <span>Continue with Google</span>
-            </>
-          )}
-        </button>
-
-        {/* Cancel button if currently loading */}
-        {loading && (
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <button
-              onClick={handleCancel}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--c-text-soft)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 12.5,
-                textDecoration: 'underline',
-                cursor: 'pointer',
-                padding: '4px 8px',
-              }}
-            >
-              Cancel authentication
-            </button>
-          </div>
-        )}
-
-        {/* Fallback / Mobile friendly option: Sign in with redirect */}
-        <div style={{ marginTop: 20, textAlign: 'center' }}>
+        {/* Authentication Actions Section */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* PRIMARY AUTH BUTTON: CONTINUE WITH GOOGLE */}
           <button
-            onClick={() => handleGoogleAuth(true)}
+            id="google-signin-btn"
+            onClick={() => handleGoogleAuth(false)}
             disabled={loading}
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--c-text-faint)',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              background: 'var(--c-card-bg)',
+              border: '1px solid var(--c-hairline-strong)',
+              borderRadius: 16,
+              padding: '14px 18px',
               fontFamily: 'var(--font-body)',
-              fontSize: 12,
+              fontSize: 17,
+              fontWeight: 500,
+              color: 'var(--c-text)',
               cursor: loading ? 'default' : 'pointer',
-              padding: '6px 10px',
-              transition: 'color 160ms ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              transition: 'background 180ms ease, border-color 180ms ease, transform 120ms ease',
             }}
           >
-            Having trouble with popups? <span style={{ color: 'var(--c-accent)', textDecoration: 'underline' }}>Sign in with redirect</span>
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    border: '2px solid var(--c-text-soft)',
+                    borderTopColor: 'var(--c-accent)',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+                <span>{authMode === 'redirect' ? 'Redirecting to Google...' : 'Authenticating with Google...'}</span>
+              </div>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                <span style={{ letterSpacing: '-0.01em' }}>Continue with Google</span>
+              </>
+            )}
           </button>
-        </div>
 
-        {/* Security badge note */}
-        <div
-          style={{
-            marginTop: 28,
-            padding: '12px 14px',
-            background: 'var(--c-card-subtle)',
-            borderRadius: 12,
-            border: '1px solid var(--c-hairline)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
+          {/* Cancel button if currently loading */}
+          {loading && (
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={handleCancel}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--c-text-soft)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 13,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                }}
+              >
+                Cancel authentication
+              </button>
+            </div>
+          )}
+
+          {/* Alternative Login Link: Sign in with redirect */}
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-text-faint)' }}>
+              Having trouble with popups?{' '}
+              <button
+                type="button"
+                onClick={() => handleGoogleAuth(true)}
+                disabled={loading}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--c-accent)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: loading ? 'default' : 'pointer',
+                  textDecoration: 'underline',
+                  padding: 0,
+                }}
+              >
+                Sign in with redirect
+              </button>
+            </p>
+          </div>
+        </section>
+
+        {/* Security / Restriction Notice Section */}
+        <section style={{ marginTop: 44 }}>
           <div
             style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 11.5,
-              color: 'var(--c-text-soft)',
-              lineHeight: 1.4,
+              background: 'var(--c-card-bg)',
+              borderRadius: 16,
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+              border: '1px solid var(--c-hairline)',
             }}
           >
-            Access is strictly restricted to verified Daffodil International University Google accounts (<strong style={{ color: 'var(--c-text)' }}>@diu.edu.bd</strong>).
+            {/* Info Icon */}
+            <div style={{ flexShrink: 0, paddingTop: 1 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            {/* Restriction Text */}
+            <p
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                fontWeight: 400,
+                color: 'var(--c-text-soft)',
+                lineHeight: 1.45,
+              }}
+            >
+              Access is strictly restricted to verified Daffodil International University Google accounts (<strong style={{ fontWeight: 600, color: 'var(--c-text)' }}>@diu.edu.bd</strong>).
+            </p>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 };
