@@ -325,18 +325,21 @@ class AppStore {
 
       let currentGroupId: string | null = null;
       let userRole: 'student' | 'cr' = 'student';
+      let hasSeenFreeAccessOffer = false;
 
       if (!userSnap.exists()) {
         await setDoc(userRef, {
           ...defaultUser,
+          has_seen_free_access_offer: false,
           created_at: serverTimestamp(),
           last_active_at: serverTimestamp(),
         });
-        this.currentUser = defaultUser;
+        this.currentUser = { ...defaultUser, has_seen_free_access_offer: false };
       } else {
         const data = userSnap.data() as Partial<User>;
         currentGroupId = data.current_group_id || null;
         userRole = data.role || 'student';
+        hasSeenFreeAccessOffer = Boolean(data.has_seen_free_access_offer);
       }
 
       // If current_group_id is null on user doc, check in parallel whether user is host or approved member
@@ -372,6 +375,7 @@ class AppStore {
         username,
         role: userRole,
         current_group_id: currentGroupId,
+        has_seen_free_access_offer: hasSeenFreeAccessOffer,
         created_at:
           userSnap.exists() && typeof userSnap.data()?.created_at === 'string'
             ? (userSnap.data()?.created_at as string)
@@ -432,6 +436,9 @@ class AppStore {
               const newGroupId = data.current_group_id ?? null;
               this.currentUser.role = data.role || this.currentUser.role;
               this.currentUser.current_group_id = newGroupId;
+              if (data.has_seen_free_access_offer !== undefined) {
+                this.currentUser.has_seen_free_access_offer = Boolean(data.has_seen_free_access_offer);
+              }
 
               if (previousGroupId !== newGroupId) {
                 // Active group has changed -> proactively fetch new group document if not in memory
@@ -788,6 +795,24 @@ class AppStore {
       await firebaseSignOut(authInstance).catch(() => {});
     }
     this.notify();
+  }
+
+  public async markFreeAccessOfferClaimed(): Promise<void> {
+    if (!this.currentUser) return;
+    this.currentUser.has_seen_free_access_offer = true;
+    this.persist();
+    this.notify();
+
+    if (db && this.currentUser.id) {
+      try {
+        const userRef = doc(db, 'users', this.currentUser.id);
+        await updateDoc(userRef, {
+          has_seen_free_access_offer: true,
+        });
+      } catch (err) {
+        console.warn('Could not persist free access offer claim:', err);
+      }
+    }
   }
 
   // ==========================================

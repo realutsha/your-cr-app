@@ -8,6 +8,7 @@ export interface User {
   current_group_id?: string | null;
   created_at: string;
   last_active_at?: string;
+  has_seen_free_access_offer?: boolean;
 }
 
 export type ApprovalMode = 'auto' | 'manual';

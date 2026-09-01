@@ -24,6 +24,7 @@ import { Sheet } from './components/common/Sheet';
 import { Toast } from './components/common/Toast';
 import { ConfirmSheet } from './components/common/ConfirmSheet';
 import { IntroPopup } from './components/common/IntroPopup';
+import { FreeAccessOfferModal } from './components/common/FreeAccessOfferModal';
 import { BottomNav, NAV_H } from './components/navigation/BottomNav';
 import { HomeScreen } from './components/home/HomeScreen';
 import { CourseScreen } from './components/course/CourseScreen';
@@ -66,6 +67,10 @@ export function App() {
   const [hasFcmToken, setHasFcmToken] = useState<boolean>(Boolean(store.getUserFcmToken()));
   const [isShutdown, setIsShutdown] = useState<boolean>(store.isAppShutdown());
   const [shutdownMessage, setShutdownMessage] = useState<string>(store.getShutdownMessage());
+  const [showFreeAccessOffer, setShowFreeAccessOffer] = useState<boolean>(() => {
+    const u = store.getCurrentUser();
+    return Boolean(u && u.has_seen_free_access_offer !== true);
+  });
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.location.pathname.startsWith('/admin');
@@ -152,13 +157,21 @@ export function App() {
   useEffect(() => {
     const unsubStore = store.subscribe(() => {
       setAuthReady(store.isAuthReady());
-      setCurrentUser(store.getCurrentUser());
+      const u = store.getCurrentUser();
+      setCurrentUser(u);
       setCurrentGroup(store.getCurrentUserGroup());
       setCourses(store.getCourses());
       setUpdates(store.getAcademicUpdates());
       setHasFcmToken(Boolean(store.getUserFcmToken()));
       setIsShutdown(store.isAppShutdown());
       setShutdownMessage(store.getShutdownMessage());
+      if (u && u.has_seen_free_access_offer === true) {
+        setShowFreeAccessOffer(false);
+      } else if (u && u.has_seen_free_access_offer !== true) {
+        setShowFreeAccessOffer(true);
+      } else {
+        setShowFreeAccessOffer(false);
+      }
     });
     const unsubTheme = subscribeTheme((t) => setThemePref(t));
     const unsubFCM = initForegroundNotificationListener((title, body) => {
@@ -423,7 +436,16 @@ export function App() {
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', transition: 'background 220ms ease' }}>
       {toast && <Toast message={toast} />}
 
-      {!introDismissed && (
+      {showFreeAccessOffer && (
+        <FreeAccessOfferModal
+          onClaim={async () => {
+            await store.markFreeAccessOfferClaimed();
+            setShowFreeAccessOffer(false);
+          }}
+        />
+      )}
+
+      {!introDismissed && !showFreeAccessOffer && (
         <IntroPopup
           onDismiss={() => {
             if (typeof window !== 'undefined') {
