@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { AdminSystemConfig } from '../../lib/adminApi';
 import { adminApi } from '../../lib/adminApi';
 
@@ -24,6 +24,19 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [saving, setSaving] = useState(false);
   const [confirmModal, setConfirmModal] = useState<'shutdown' | 'restart' | null>(null);
 
+  // Synchronize local form state whenever the Firestore system config arrives or updates
+  useEffect(() => {
+    if (system) {
+      setIsShutdown(Boolean(system.isShutdown));
+      setShutdownMessage(
+        system.shutdownMessage ||
+          'Class Mate is temporarily unavailable due to maintenance. Please try again later.'
+      );
+      setScheduledStart(system.scheduledStart || '');
+      setScheduledEnd(system.scheduledEnd || '');
+    }
+  }, [system]);
+
   const handleApplyChanges = async (targetShutdown?: boolean) => {
     setSaving(true);
     setConfirmModal(null);
@@ -36,7 +49,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         shutdownMessage: shutdownMessage.trim(),
         scheduledStart: scheduledStart.trim() || null,
         scheduledEnd: scheduledEnd.trim() || null,
-        actionType: shutdownState ? 'SHUTDOWN_APP' : 'UPDATE_SYSTEM_STATUS',
+        actionType: targetShutdown !== undefined
+          ? (targetShutdown ? 'APP_SHUTDOWN' : 'APP_RESTART')
+          : (shutdownState ? 'APP_SHUTDOWN' : 'UPDATE_SYSTEM_STATUS'),
         notes: notes.trim() || (shutdownState ? 'Admin activated maintenance shutdown.' : 'System updated.'),
       });
 
@@ -44,7 +59,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       onUpdateSuccess(res);
       showToast(shutdownState ? 'Application SHUT DOWN (Maintenance mode active)' : 'Application operational status saved');
     } catch (err: any) {
-      showToast(err.message || 'Failed to update system status.');
+      console.error('[Admin Dashboard] Failed to update system status in Firestore:', err);
+      showToast(err?.message || 'Failed to update system status in Firestore.');
     } finally {
       setSaving(false);
     }

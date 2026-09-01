@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { collection, onSnapshot, type QuerySnapshot, type DocumentData } from 'firebase/firestore';
+import { collection, doc, onSnapshot, type QuerySnapshot, type DocumentSnapshot, type DocumentData } from 'firebase/firestore';
 import { auth, db, onAuthStateChanged, firebaseSignOut, type FirebaseUser } from '../../lib/firebase';
 import {
   adminApi,
@@ -62,13 +62,15 @@ export const AdminLayout: React.FC = () => {
   const groupsDocsRef = useRef<{ id: string; data: any }[]>([]);
   const usersDocsRef = useRef<{ id: string; data: any }[]>([]);
   const membersDocsRef = useRef<{ id: string; data: any }[]>([]);
+  const systemDocRef = useRef<AdminSystemConfig | null>(null);
 
   // Recompute stats, groups list, and users list from the latest snapshot refs.
-  // Called whenever any of the 3 onSnapshot listeners fires.
+  // Called whenever any of the onSnapshot listeners fires.
   const recomputeFromSnapshots = useCallback(() => {
     const groupsDocs = groupsDocsRef.current;
     const usersDocs = usersDocsRef.current;
     const membersDocs = membersDocsRef.current;
+    const sys = systemDocRef.current;
 
     // --- Stats ---
     const totalGroups = groupsDocs.length;
@@ -89,14 +91,30 @@ export const AdminLayout: React.FC = () => {
 
     const totalHosts = hostUserIds.size;
 
-    setStats((prev) => ({
+    let appStatus: 'ONLINE' | 'MAINTENANCE' | 'SCHEDULED' = 'ONLINE';
+    if (sys?.isShutdown) {
+      appStatus = 'MAINTENANCE';
+    } else if (sys?.scheduledStart && sys?.scheduledEnd) {
+      const now = Date.now();
+      const start = new Date(sys.scheduledStart).getTime();
+      const end = new Date(sys.scheduledEnd).getTime();
+      if (!isNaN(start) && !isNaN(end)) {
+        if (now >= start && now <= end) {
+          appStatus = 'MAINTENANCE';
+        } else if (now < start) {
+          appStatus = 'SCHEDULED';
+        }
+      }
+    }
+
+    setStats({
       totalGroups,
       totalUsers,
       totalMembers,
       totalCRs,
       totalHosts,
-      appStatus: prev?.appStatus || 'ONLINE',
-    }));
+      appStatus,
+    });
 
     // --- Groups table ---
     const userMap = new Map<string, any>();
@@ -179,7 +197,7 @@ export const AdminLayout: React.FC = () => {
     );
   }, []);
 
-  // Load only audit logs + system config (non-real-time pieces)
+  // Load only audit logs + system config
   const loadAuditAndSystem = useCallback(async (activeUser?: FirebaseUser | null) => {
     const userToUse = activeUser || adminUserRef.current || auth?.currentUser;
 
@@ -203,9 +221,11 @@ export const AdminLayout: React.FC = () => {
       ]);
 
       if (statsRes) {
-        setSystem(statsRes.system);
-        // Update appStatus from system config
-        setStats((prev) => prev ? { ...prev, appStatus: statsRes.stats.appStatus } : null);
+        if (statsRes.system) {
+          systemDocRef.current = statsRes.system;
+          setSystem(statsRes.system);
+        }
+        setStats((prev) => (prev ? { ...prev, appStatus: statsRes.stats.appStatus } : statsRes.stats));
       }
 
       if (auditRes) {
@@ -262,15 +282,42 @@ export const AdminLayout: React.FC = () => {
       }
     );
 
+    const unsubSystem = onSnapshot(
+      doc(db, 'appConfig', 'system'),
+      (snap: DocumentSnapshot<DocumentData>) => {
+        if (snap.exists()) {
+          const sysData = snap.data() as AdminSystemConfig;
+          systemDocRef.current = sysData;
+          setSystem(sysData);
+          recomputeFromSnapshots();
+        } else {
+          const defaultSys: AdminSystemConfig = {
+            isShutdown: false,
+            shutdownMessage: 'Class Mate is temporarily unavailable due to maintenance.',
+            scheduledStart: null,
+            scheduledEnd: null,
+          };
+          systemDocRef.current = defaultSys;
+          setSystem(defaultSys);
+          recomputeFromSnapshots();
+        }
+      },
+      (err) => {
+        console.warn('[Admin Dashboard] appConfig/system onSnapshot error:', err);
+      }
+    );
+
     return () => {
       console.log('[Admin Dashboard] Detaching real-time Firestore listeners.');
       unsubGroups();
       unsubUsers();
       unsubMembers();
+      unsubSystem();
       // Clear refs on cleanup to avoid stale data on re-auth
       groupsDocsRef.current = [];
       usersDocsRef.current = [];
       membersDocsRef.current = [];
+      systemDocRef.current = null;
     };
   }, [isAuthLoading, adminUser, recomputeFromSnapshots]);
 
