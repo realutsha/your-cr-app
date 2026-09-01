@@ -396,7 +396,7 @@ export const AdminLayout: React.FC = () => {
       <div
         style={{
           minHeight: '100vh',
-          background: '#0B0D14',
+          background: '#F8FAFC',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -409,12 +409,12 @@ export const AdminLayout: React.FC = () => {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            border: '2.5px solid rgba(255,255,255,0.15)',
-            borderTopColor: '#818CF8',
+            border: '2.5px solid #CBD5E1',
+            borderTopColor: '#4F46E5',
             animation: 'spin 0.6s linear infinite',
           }}
         />
-        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13.5, fontWeight: 500 }}>
+        <div style={{ color: '#475569', fontSize: 13.5, fontWeight: 500 }}>
           Verifying administrator session...
         </div>
       </div>
@@ -454,8 +454,8 @@ export const AdminLayout: React.FC = () => {
     <div
       style={{
         minHeight: '100vh',
-        background: '#0B0D14',
-        color: '#FFFFFF',
+        background: '#F8FAFC',
+        color: '#0F172A',
         fontFamily: 'var(--font-body)',
         display: 'flex',
         flexDirection: 'column',
@@ -466,12 +466,13 @@ export const AdminLayout: React.FC = () => {
       {/* Top Header */}
       <header
         style={{
-          background: '#121624',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          borderBottom: '1px solid #E2E8F0',
           position: 'sticky',
           top: 0,
           zIndex: 100,
           padding: '0 24px',
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
         }}
       >
         <div
@@ -492,7 +493,7 @@ export const AdminLayout: React.FC = () => {
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: '#818CF8',
+                background: '#4F46E5',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -504,8 +505,8 @@ export const AdminLayout: React.FC = () => {
               CM
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: '#FFFFFF', lineHeight: 1.2 }}>
-                ClassMate <span style={{ color: '#818CF8', fontSize: 12, fontWeight: 700, background: 'rgba(129,140,248,0.15)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>ADMIN PORTAL</span>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#0F172A', lineHeight: 1.2 }}>
+                ClassMate <span style={{ color: '#4F46E5', fontSize: 12, fontWeight: 700, background: '#EEF2FF', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>ADMIN PORTAL</span>
               </div>
             </div>
           </div>
@@ -513,7 +514,7 @@ export const AdminLayout: React.FC = () => {
           {/* Right Action Items */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {adminEmail && (
-              <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
                 {adminEmail}
               </span>
             )}
@@ -521,14 +522,15 @@ export const AdminLayout: React.FC = () => {
             <button
               onClick={handleGoToApp}
               style={{
-                background: '#1E2438',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: '#FFFFFF',
-                padding: '6px 12px',
+                background: '#F1F5F9',
+                border: '1px solid #CBD5E1',
+                color: '#0F172A',
+                padding: '7px 14px',
                 borderRadius: 8,
                 fontSize: 12.5,
-                fontWeight: 500,
+                fontWeight: 600,
                 cursor: 'pointer',
+                transition: 'background 140ms ease',
               }}
             >
               Student App &rarr;
@@ -538,13 +540,13 @@ export const AdminLayout: React.FC = () => {
               id="admin-logout-btn"
               onClick={handleAdminLogout}
               style={{
-                background: 'rgba(239, 68, 68, 0.12)',
+                background: 'rgba(239, 68, 68, 0.08)',
                 border: '1px solid rgba(239, 68, 68, 0.25)',
-                color: '#FCA5A5',
+                color: '#DC2626',
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: 'pointer',
-                padding: '6px 12px',
+                padding: '7px 14px',
                 borderRadius: 8,
                 transition: 'all 140ms ease',
               }}
@@ -564,7 +566,7 @@ export const AdminLayout: React.FC = () => {
             flexWrap: 'wrap',
             gap: 8,
             marginBottom: 24,
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid #E2E8F0',
             paddingBottom: 12,
           }}
         >
@@ -633,9 +635,9 @@ const TabButton: React.FC<{ active: boolean; label: string; onClick: () => void 
   <button
     onClick={onClick}
     style={{
-      background: active ? 'rgba(129,140,248,0.15)' : 'transparent',
-      border: active ? '1px solid rgba(129,140,248,0.35)' : '1px solid transparent',
-      color: active ? '#818CF8' : 'rgba(255,255,255,0.7)',
+      background: active ? '#EEF2FF' : 'transparent',
+      border: active ? '1px solid #C7D2FE' : '1px solid transparent',
+      color: active ? '#4F46E5' : '#64748B',
       padding: '8px 16px',
       borderRadius: 10,
       fontSize: 13.5,

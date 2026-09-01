@@ -54,10 +54,11 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
           gap: 12,
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 14,
           padding: '14px 18px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 260px' }}>
@@ -68,11 +69,11 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
             onChange={(e) => setSearch(e.target.value)}
             style={{
               width: '100%',
-              background: '#1E2438',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#F8FAFC',
+              border: '1px solid #CBD5E1',
               borderRadius: 8,
               padding: '8px 14px',
-              color: '#FFFFFF',
+              color: '#0F172A',
               fontSize: 13,
               outline: 'none',
             }}
@@ -84,11 +85,11 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{
-              background: '#1E2438',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#F8FAFC',
+              border: '1px solid #CBD5E1',
               borderRadius: 8,
               padding: '8px 12px',
-              color: '#FFFFFF',
+              color: '#0F172A',
               fontSize: 13,
               outline: 'none',
             }}
@@ -102,13 +103,13 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
           <button
             onClick={onRefresh}
             style={{
-              background: '#1E2438',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#F1F5F9',
+              border: '1px solid #CBD5E1',
               borderRadius: 8,
               padding: '8px 14px',
-              color: '#FFFFFF',
+              color: '#0F172A',
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -120,16 +121,17 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
       {/* Groups Table / List */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
                 <th style={{ padding: '14px 20px' }}>Class / Group Name</th>
                 <th style={{ padding: '14px 16px' }}>Code</th>
                 <th style={{ padding: '14px 16px' }}>Host / Creator</th>
@@ -142,20 +144,20 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
                     Loading groups data...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#FCA5A5' }}>
+                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#DC2626' }}>
                     <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Error loading groups</div>
                     <div style={{ fontSize: 12 }}>{error}</div>
                   </td>
                 </tr>
               ) : filteredGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
                     No groups found.
                   </td>
                 </tr>
@@ -164,18 +166,19 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                   <tr
                     key={g.id}
                     style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      borderBottom: '1px solid #F1F5F9',
                       transition: 'background 120ms ease',
                     }}
                   >
-                    <td style={{ padding: '14px 20px', fontWeight: 600, color: '#FFFFFF' }}>
+                    <td style={{ padding: '14px 20px', fontWeight: 600, color: '#0F172A' }}>
                       {g.name}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
                         style={{
-                          background: 'rgba(129,140,248,0.15)',
-                          color: '#A5B4FC',
+                          background: '#EEF2FF',
+                          color: '#4F46E5',
+                          border: '1px solid #C7D2FE',
                           padding: '3px 8px',
                           borderRadius: 6,
                           fontFamily: 'monospace',
@@ -185,21 +188,22 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                         {g.code}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'rgba(255,255,255,0.85)' }}>
-                      <div>{g.host_username}</div>
-                      {g.host_email && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)' }}>{g.host_email}</div>}
+                    <td style={{ padding: '14px 16px', color: '#0F172A' }}>
+                      <div style={{ fontWeight: 500 }}>{g.host_username}</div>
+                      {g.host_email && <div style={{ fontSize: 11.5, color: '#64748B' }}>{g.host_email}</div>}
                     </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0F172A' }}>
                       {g.member_count} / {g.max_members || 50}
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'rgba(255,255,255,0.8)' }}>
+                    <td style={{ padding: '14px 16px', color: '#475569' }}>
                       {g.cr_count || 1}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
                         style={{
-                          background: g.status === 'active' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: g.status === 'active' ? '#6EE7B7' : '#FCA5A5',
+                          background: g.status === 'active' ? '#ECFDF5' : '#FEF2F2',
+                          color: g.status === 'active' ? '#059669' : '#DC2626',
+                          border: `1px solid ${g.status === 'active' ? '#A7F3D0' : '#FECACA'}`,
                           padding: '3px 8px',
                           borderRadius: 6,
                           fontSize: 11.5,
@@ -214,14 +218,15 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                       <button
                         onClick={() => handleOpenGroup(g)}
                         style={{
-                          background: '#1E2438',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          color: '#818CF8',
+                          background: '#EEF2FF',
+                          border: '1px solid #C7D2FE',
+                          color: '#4F46E5',
                           padding: '6px 12px',
                           borderRadius: 8,
                           fontSize: 12,
                           fontWeight: 600,
                           cursor: 'pointer',
+                          transition: 'background 120ms ease',
                         }}
                       >
                         View Roster
@@ -241,7 +246,7 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.7)',
+            background: 'rgba(15, 23, 42, 0.45)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -256,23 +261,24 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
         >
           <div
             style={{
-              background: '#121624',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
               borderRadius: 20,
               maxWidth: 640,
               width: '100%',
               maxHeight: '85vh',
               overflowY: 'auto',
               padding: '28px 24px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#818CF8', letterSpacing: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#4F46E5', letterSpacing: 1 }}>
                   Group Roster Details
                 </div>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: '#FFFFFF', margin: '4px 0 0 0' }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', margin: '4px 0 0 0' }}>
                   {selectedGroup.name}
                 </h2>
               </div>
@@ -284,7 +290,7 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'rgba(255,255,255,0.5)',
+                  color: '#64748B',
                   fontSize: 20,
                   cursor: 'pointer',
                   padding: 4,
@@ -300,7 +306,8 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
                 gap: 12,
-                background: 'rgba(255,255,255,0.03)',
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
                 padding: 16,
                 borderRadius: 12,
                 marginBottom: 20,
@@ -308,36 +315,36 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
               }}
             >
               <div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>CLASS CODE</div>
-                <div style={{ fontWeight: 700, color: '#A5B4FC', fontFamily: 'monospace' }}>{selectedGroup.code}</div>
+                <div style={{ color: '#64748B', fontSize: 11, fontWeight: 600 }}>CLASS CODE</div>
+                <div style={{ fontWeight: 700, color: '#4F46E5', fontFamily: 'monospace', fontSize: 14 }}>{selectedGroup.code}</div>
               </div>
               <div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>TOTAL MEMBERS</div>
-                <div style={{ fontWeight: 700, color: '#FFFFFF' }}>{selectedGroup.member_count} / {selectedGroup.max_members || 50}</div>
+                <div style={{ color: '#64748B', fontSize: 11, fontWeight: 600 }}>TOTAL MEMBERS</div>
+                <div style={{ fontWeight: 700, color: '#0F172A' }}>{selectedGroup.member_count} / {selectedGroup.max_members || 50}</div>
               </div>
               <div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>HOST</div>
-                <div style={{ fontWeight: 600, color: '#FFFFFF' }}>{selectedGroup.host_username}</div>
+                <div style={{ color: '#64748B', fontSize: 11, fontWeight: 600 }}>HOST</div>
+                <div style={{ fontWeight: 600, color: '#0F172A' }}>{selectedGroup.host_username}</div>
               </div>
               <div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>STATUS</div>
-                <div style={{ fontWeight: 600, color: selectedGroup.status === 'active' ? '#6EE7B7' : '#FCA5A5' }}>
+                <div style={{ color: '#64748B', fontSize: 11, fontWeight: 600 }}>STATUS</div>
+                <div style={{ fontWeight: 600, color: selectedGroup.status === 'active' ? '#059669' : '#DC2626' }}>
                   {selectedGroup.status.toUpperCase()}
                 </div>
               </div>
             </div>
 
             {/* Member List */}
-            <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 700, color: '#FFFFFF' }}>
+            <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 700, color: '#0F172A' }}>
               Enrolled Members ({groupDetails?.members?.length || 0})
             </div>
 
             {loadingDetails ? (
-              <div style={{ padding: 24, textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+              <div style={{ padding: 24, textAlign: 'center', color: '#64748B', fontSize: 13 }}>
                 Loading member records...
               </div>
             ) : !groupDetails?.members || groupDetails.members.length === 0 ? (
-              <div style={{ padding: 16, color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+              <div style={{ padding: 16, color: '#64748B', fontSize: 13 }}>
                 No separate member records found.
               </div>
             ) : (
@@ -350,24 +357,25 @@ export const AdminGroupsTab: React.FC<AdminGroupsTabProps> = ({ groups, loading,
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '10px 14px',
-                      background: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255,255,255,0.05)',
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
                       borderRadius: 10,
                       fontSize: 12.5,
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, color: '#FFFFFF' }}>
+                      <div style={{ fontWeight: 600, color: '#0F172A' }}>
                         {m.username || m.email?.split('@')[0] || `User ${m.user_id?.substring(0, 6)}`}
                       </div>
-                      <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
+                      <div style={{ color: '#64748B', fontSize: 11 }}>
                         ID: {m.user_id} {m.email ? `· ${m.email}` : ''}
                       </div>
                     </div>
                     <span
                       style={{
-                        background: m.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: m.status === 'approved' ? '#6EE7B7' : '#FCD34D',
+                        background: m.status === 'approved' ? '#ECFDF5' : '#FFFBEB',
+                        color: m.status === 'approved' ? '#059669' : '#D97706',
+                        border: `1px solid ${m.status === 'approved' ? '#A7F3D0' : '#FDE68A'}`,
                         padding: '2px 8px',
                         borderRadius: 6,
                         fontSize: 11,

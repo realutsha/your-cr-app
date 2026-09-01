@@ -55,18 +55,19 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       {/* Card 1: Immediate Application Availability */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
               Global Maintenance & Shutdown Switch
             </h2>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, lineHeight: 1.45 }}>
+            <p style={{ fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 1.45 }}>
               Instantly toggle the application availability for all student and CR users across the university.
             </p>
           </div>
@@ -77,9 +78,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               borderRadius: 20,
               fontSize: 12,
               fontWeight: 700,
-              background: isShutdown ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
-              color: isShutdown ? '#FCA5A5' : '#6EE7B7',
-              border: `1px solid ${isShutdown ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`,
+              background: isShutdown ? '#FEF2F2' : '#ECFDF5',
+              color: isShutdown ? '#DC2626' : '#059669',
+              border: `1px solid ${isShutdown ? '#FECACA' : '#A7F3D0'}`,
             }}
           >
             {isShutdown ? 'OFFLINE' : 'ONLINE'}
@@ -103,6 +104,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
+                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
               }}
             >
               <span>🚀 Turn Application Back ON (Online)</span>
@@ -112,7 +114,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               onClick={() => setConfirmModal('shutdown')}
               disabled={saving}
               style={{
-                background: '#EF4444',
+                background: '#DC2626',
                 border: 'none',
                 color: '#FFFFFF',
                 padding: '12px 20px',
@@ -123,6 +125,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
+                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
               }}
             >
               <span>⚠️ SHUT DOWN APP (Maintenance Mode)</span>
@@ -134,16 +137,17 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       {/* Card 2: Custom Shutdown Notice Message */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>
           Custom Maintenance Message
         </h2>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: '#64748B', marginTop: 4, marginBottom: 16 }}>
           This message will be presented to users when they open ClassMate during shutdown.
         </p>
 
@@ -154,11 +158,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           placeholder="Enter custom maintenance explanation for users..."
           style={{
             width: '100%',
-            background: '#1E2438',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: '#F8FAFC',
+            border: '1px solid #CBD5E1',
             borderRadius: 10,
             padding: '12px 14px',
-            color: '#FFFFFF',
+            color: '#0F172A',
             fontSize: 13.5,
             fontFamily: 'inherit',
             lineHeight: 1.5,
@@ -172,22 +176,23 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       {/* Card 3: Scheduled Shutdown & Automatic Restart */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>
           Scheduled Maintenance Window
         </h2>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: '#64748B', marginTop: 4, marginBottom: 16 }}>
           Set an optional future window. The application will automatically enter maintenance at Start Time and restore access at End Time.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 6 }}>
               SCHEDULED START TIME
             </label>
             <input
@@ -196,11 +201,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               onChange={(e) => setScheduledStart(e.target.value)}
               style={{
                 width: '100%',
-                background: '#1E2438',
-                border: '1px solid rgba(255,255,255,0.12)',
+                background: '#F8FAFC',
+                border: '1px solid #CBD5E1',
                 borderRadius: 8,
                 padding: '10px 12px',
-                color: '#FFFFFF',
+                color: '#0F172A',
                 fontSize: 13,
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -209,7 +214,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           </div>
 
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 6 }}>
               AUTOMATIC RESTART / END TIME
             </label>
             <input
@@ -218,11 +223,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               onChange={(e) => setScheduledEnd(e.target.value)}
               style={{
                 width: '100%',
-                background: '#1E2438',
-                border: '1px solid rgba(255,255,255,0.12)',
+                background: '#F8FAFC',
+                border: '1px solid #CBD5E1',
                 borderRadius: 8,
                 padding: '10px 12px',
-                color: '#FFFFFF',
+                color: '#0F172A',
                 fontSize: 13,
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -241,7 +246,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'rgba(255,255,255,0.4)',
+                color: '#64748B',
                 fontSize: 12,
                 cursor: 'pointer',
                 textDecoration: 'underline',
@@ -256,13 +261,14 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       {/* Card 4: Action Reason / Notes */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
-        <label style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', display: 'block', marginBottom: 6 }}>
+        <label style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', display: 'block', marginBottom: 6 }}>
           Audit Reason / Internal Notes
         </label>
         <input
@@ -272,11 +278,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           placeholder="e.g. Scheduled database index maintenance or semester migration"
           style={{
             width: '100%',
-            background: '#1E2438',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: '#F8FAFC',
+            border: '1px solid #CBD5E1',
             borderRadius: 8,
             padding: '10px 14px',
-            color: '#FFFFFF',
+            color: '#0F172A',
             fontSize: 13,
             outline: 'none',
             boxSizing: 'border-box',
@@ -288,7 +294,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             onClick={() => handleApplyChanges()}
             disabled={saving}
             style={{
-              background: '#818CF8',
+              background: '#4F46E5',
               border: 'none',
               color: '#FFFFFF',
               padding: '12px 24px',
@@ -296,6 +302,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               fontSize: 14,
               fontWeight: 700,
               cursor: saving ? 'default' : 'pointer',
+              boxShadow: '0 2px 6px rgba(79, 70, 229, 0.25)',
             }}
           >
             {saving ? 'Saving...' : 'Save Settings & Configuration'}
@@ -309,7 +316,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.75)',
+            background: 'rgba(15, 23, 42, 0.45)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -320,23 +327,23 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         >
           <div
             style={{
-              background: '#1A1424',
-              border: '1px solid rgba(239,68,68,0.4)',
+              background: '#FFFFFF',
+              border: '1px solid #FCA5A5',
               borderRadius: 20,
               maxWidth: 480,
               width: '100%',
               padding: '28px 24px',
-              boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             }}
           >
             <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
               Confirm Application Shutdown
             </h3>
-            <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.75)', marginTop: 8, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 13.5, color: '#475569', marginTop: 8, lineHeight: 1.5 }}>
               Are you sure you want to put ClassMate into <strong>Maintenance Mode</strong>? All students and CRs will be temporarily shown the maintenance screen until you restart the application.
             </p>
-            <div style={{ fontSize: 12, color: '#FCA5A5', marginTop: 12, background: 'rgba(239,68,68,0.1)', padding: '10px 12px', borderRadius: 8 }}>
+            <div style={{ fontSize: 12, color: '#991B1B', marginTop: 12, background: '#FEF2F2', border: '1px solid #FECACA', padding: '10px 12px', borderRadius: 8 }}>
               Note: The admin dashboard will remain accessible to you at all times.
             </div>
 
@@ -344,9 +351,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               <button
                 onClick={() => setConfirmModal(null)}
                 style={{
-                  background: '#1E2438',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: '#FFFFFF',
+                  background: '#F1F5F9',
+                  border: '1px solid #CBD5E1',
+                  color: '#0F172A',
                   padding: '10px 16px',
                   borderRadius: 8,
                   fontSize: 13,
@@ -359,7 +366,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               <button
                 onClick={() => handleApplyChanges(true)}
                 style={{
-                  background: '#EF4444',
+                  background: '#DC2626',
                   border: 'none',
                   color: '#FFFFFF',
                   padding: '10px 18px',
@@ -367,6 +374,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
                 }}
               >
                 Yes, Shut Down App

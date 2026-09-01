@@ -43,10 +43,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
           gap: 12,
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 14,
           padding: '14px 18px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 260px' }}>
@@ -57,11 +58,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
             onChange={(e) => setSearch(e.target.value)}
             style={{
               width: '100%',
-              background: '#1E2438',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#F8FAFC',
+              border: '1px solid #CBD5E1',
               borderRadius: 8,
               padding: '8px 14px',
-              color: '#FFFFFF',
+              color: '#0F172A',
               fontSize: 13,
               outline: 'none',
             }}
@@ -73,11 +74,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
             style={{
-              background: '#1E2438',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#F8FAFC',
+              border: '1px solid #CBD5E1',
               borderRadius: 8,
               padding: '8px 12px',
-              color: '#FFFFFF',
+              color: '#0F172A',
               fontSize: 13,
               outline: 'none',
             }}
@@ -91,13 +92,13 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
           <button
             onClick={onRefresh}
             style={{
-              background: '#1E2438',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: '#F1F5F9',
+              border: '1px solid #CBD5E1',
               borderRadius: 8,
               padding: '8px 14px',
-              color: '#FFFFFF',
+              color: '#0F172A',
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -109,16 +110,17 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
       {/* Users Table */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
                 <th style={{ padding: '14px 20px' }}>User / Display Name</th>
                 <th style={{ padding: '14px 16px' }}>Email Address</th>
                 <th style={{ padding: '14px 16px' }}>Role / Status</th>
@@ -130,20 +132,20 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
                     Loading users list...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#FCA5A5' }}>
+                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#DC2626' }}>
                     <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Error loading users</div>
                     <div style={{ fontSize: 12 }}>{error}</div>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
                     No users found.
                   </td>
                 </tr>
@@ -152,29 +154,36 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
                   <tr
                     key={u.id}
                     style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      borderBottom: '1px solid #F1F5F9',
                       transition: 'background 120ms ease',
                     }}
                   >
-                    <td style={{ padding: '14px 20px', fontWeight: 600, color: '#FFFFFF' }}>
+                    <td style={{ padding: '14px 20px', fontWeight: 600, color: '#0F172A' }}>
                       {u.username}
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#A5B4FC' }}>
+                    <td style={{ padding: '14px 16px', color: '#4F46E5', fontWeight: 500 }}>
                       {u.email}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
                         style={{
                           background: u.is_host
-                            ? 'rgba(245,158,11,0.15)'
+                            ? '#FFFBEB'
                             : u.role === 'cr'
-                            ? 'rgba(129,140,248,0.15)'
-                            : 'rgba(16,185,129,0.15)',
+                            ? '#EEF2FF'
+                            : '#ECFDF5',
                           color: u.is_host
-                            ? '#FCD34D'
+                            ? '#D97706'
                             : u.role === 'cr'
-                            ? '#A5B4FC'
-                            : '#6EE7B7',
+                            ? '#4F46E5'
+                            : '#059669',
+                          border: `1px solid ${
+                            u.is_host
+                              ? '#FDE68A'
+                              : u.role === 'cr'
+                              ? '#C7D2FE'
+                              : '#A7F3D0'
+                          }`,
                           padding: '3px 8px',
                           borderRadius: 6,
                           fontSize: 11.5,
@@ -185,24 +194,24 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, loading, er
                         {u.is_host ? 'Host CR' : u.role.toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'rgba(255,255,255,0.85)' }}>
+                    <td style={{ padding: '14px 16px', color: '#0F172A' }}>
                       {u.group_name ? (
                         <div>
-                          <div>{u.group_name}</div>
+                          <div style={{ fontWeight: 500 }}>{u.group_name}</div>
                           {u.group_code && (
-                            <span style={{ fontSize: 11, color: '#A5B4FC', fontFamily: 'monospace' }}>
+                            <span style={{ fontSize: 11, color: '#4F46E5', fontFamily: 'monospace' }}>
                               [{u.group_code}]
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span style={{ color: 'rgba(255,255,255,0.35)' }}>None</span>
+                        <span style={{ color: '#94A3B8' }}>None</span>
                       )}
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontSize: 11.5 }}>
+                    <td style={{ padding: '14px 16px', color: '#94A3B8', fontFamily: 'monospace', fontSize: 11.5 }}>
                       {u.id.substring(0, 10)}...
                     </td>
-                    <td style={{ padding: '14px 20px', color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                    <td style={{ padding: '14px 20px', color: '#64748B', fontSize: 12 }}>
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
                   </tr>

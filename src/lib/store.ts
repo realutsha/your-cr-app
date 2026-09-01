@@ -34,6 +34,7 @@ import {
 import {
   LIMITS,
   validateText,
+  validateClassName,
   validateUrl,
 } from './validation';
 import { dispatchUpdateNotification } from './notifications';
@@ -216,8 +217,11 @@ class AppStore {
           this.syncFirebaseUserProfile(firebaseUser.uid, email, username).catch((err) => {
             console.warn('Background profile sync error:', err);
           });
-        } else if (email === 'madhurzamutsha@gmail.com') {
-          // Admin account: do not sign out Firebase Auth, but leave student currentUser null
+        } else if (
+          email === 'madhurzamutsha@gmail.com' ||
+          (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))
+        ) {
+          // Admin account or on admin route: do not sign out Firebase Auth, but leave student currentUser null
           this.currentUser = null;
           this.clearFirestoreListeners();
           this.authReady = true;
@@ -256,8 +260,11 @@ class AppStore {
             const username = extractUsernameFromEmail(email);
             await this.syncFirebaseUserProfile(user.uid, email, username);
             this.authErrorMessage = null;
-          } else if (email === 'madhurzamutsha@gmail.com') {
-            // Admin account redirect: do not sign out
+          } else if (
+            email === 'madhurzamutsha@gmail.com' ||
+            (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))
+          ) {
+            // Admin account redirect or on admin route: do not sign out
             this.currentUser = null;
             this.clearFirestoreListeners();
             this.notify();
@@ -836,18 +843,13 @@ class AppStore {
 
   public async createGroup(
     name: string,
-    approvalMode: ApprovalMode = 'auto'
+    approvalMode: ApprovalMode = 'manual'
   ): Promise<{ group?: Group; error?: string }> {
     if (!this.currentUser) {
       return { error: 'Not authenticated. Please sign in with your DIU account.' };
     }
 
-    const nameValidation = validateText(name, {
-      fieldName: 'Class name',
-      maxLength: LIMITS.CLASS_NAME,
-      minLength: 3,
-      required: true,
-    });
+    const nameValidation = validateClassName(name);
     if (!nameValidation.isValid) {
       return { error: nameValidation.error };
     }

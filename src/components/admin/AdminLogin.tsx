@@ -73,8 +73,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     <div
       style={{
         minHeight: '100vh',
-        background: '#0B0D14',
-        color: '#FFFFFF',
+        background: '#F8FAFC',
+        color: '#0F172A',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -86,11 +86,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         style={{
           width: '100%',
           maxWidth: 420,
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 20,
           padding: '40px 32px',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.55)',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
           textAlign: 'center',
         }}
       >
@@ -101,7 +101,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               width: 52,
               height: 52,
               borderRadius: 14,
-              background: '#818CF8',
+              background: '#4F46E5',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
@@ -110,7 +110,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               fontWeight: 800,
               fontSize: 20,
               margin: '0 auto 16px',
-              boxShadow: '0 8px 24px rgba(129,140,248,0.3)',
+              boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
             }}
           >
             CM
@@ -119,22 +119,22 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           <div
             style={{
               fontFamily: 'var(--font-head)',
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: 800,
-              color: '#FFFFFF',
+              color: '#0F172A',
               letterSpacing: '-0.02em',
             }}
           >
-            Class Mate
+            ClassMate
           </div>
 
           <div
             style={{
               display: 'inline-block',
               marginTop: 6,
-              background: 'rgba(129,140,248,0.15)',
-              border: '1px solid rgba(129,140,248,0.3)',
-              color: '#A5B4FC',
+              background: '#EEF2FF',
+              border: '1px solid #C7D2FE',
+              color: '#4F46E5',
               padding: '3px 10px',
               borderRadius: 6,
               fontSize: 12,
@@ -148,18 +148,18 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
 
           <div
             style={{
-              fontSize: 14,
-              color: 'rgba(255,255,255,0.7)',
+              fontSize: 14.5,
+              color: '#475569',
               marginTop: 14,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             Administrator Sign In
           </div>
           <div
             style={{
-              fontSize: 12.5,
-              color: 'rgba(255,255,255,0.45)',
+              fontSize: 13,
+              color: '#64748B',
               marginTop: 4,
             }}
           >
@@ -171,39 +171,41 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         {isAccessDenied ? (
           <div
             style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              borderRadius: 12,
-              padding: '16px',
+              background: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              borderRadius: 14,
+              padding: '20px 18px',
               marginBottom: 24,
-              textAlign: 'left',
-              fontSize: 13,
-              color: '#FCA5A5',
-              lineHeight: 1.45,
+              textAlign: 'center',
+              lineHeight: 1.5,
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
-              <span>🚫 Access Denied</span>
+            <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 16, color: '#DC2626' }}>
+              Access Denied
             </div>
-            <div>You are not authorized to access the Admin Portal.</div>
+            <div style={{ color: '#991B1B', fontSize: 13.5, fontWeight: 500 }}>
+              This account is not authorized to access the ClassMate Admin Dashboard.
+            </div>
             {attemptedEmail && (
-              <div style={{ marginTop: 6, fontSize: 11.5, opacity: 0.85 }}>
-                Account: <strong>{attemptedEmail}</strong>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#B91C1C', opacity: 0.9 }}>
+                Signed in as: <strong>{attemptedEmail}</strong>
               </div>
             )}
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 16 }}>
               <button
                 onClick={handleSwitchAccount}
                 style={{
-                  background: '#EF4444',
+                  background: '#DC2626',
                   border: 'none',
                   color: '#FFFFFF',
-                  padding: '8px 14px',
-                  borderRadius: 8,
-                  fontSize: 12,
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
                   width: '100%',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                  transition: 'background 140ms ease',
                 }}
               >
                 Sign in with a different account
@@ -216,14 +218,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         {!isAccessDenied && errorMsg ? (
           <div
             style={{
-              background: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
+              background: '#FFFBEB',
+              border: '1px solid #FDE68A',
               borderRadius: 12,
               padding: '12px 14px',
               marginBottom: 20,
               textAlign: 'left',
               fontSize: 12.5,
-              color: '#FCD34D',
+              color: '#B45309',
               lineHeight: 1.45,
             }}
           >
@@ -244,15 +246,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 12,
-                background: '#1E2438',
-                border: '1px solid rgba(255,255,255,0.15)',
+                background: '#FFFFFF',
+                border: '1px solid #CBD5E1',
                 borderRadius: 12,
                 padding: '14px 18px',
                 fontSize: 14.5,
                 fontWeight: 600,
-                color: '#FFFFFF',
+                color: '#0F172A',
                 cursor: loading ? 'default' : 'pointer',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
                 transition: 'background 160ms ease, border-color 160ms ease, transform 100ms ease',
               }}
             >
@@ -262,8 +264,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                     style={{
                       width: 16,
                       height: 16,
-                      border: '2px solid rgba(255,255,255,0.3)',
-                      borderTopColor: '#818CF8',
+                      border: '2px solid #CBD5E1',
+                      borderTopColor: '#4F46E5',
                       borderRadius: '50%',
                       display: 'inline-block',
                       animation: 'spin 0.8s linear infinite',
@@ -288,7 +290,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             <div
               style={{
                 fontSize: 12,
-                color: 'rgba(255,255,255,0.45)',
+                color: '#64748B',
                 marginTop: 20,
                 lineHeight: 1.5,
               }}
@@ -304,8 +306,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'rgba(255,255,255,0.35)',
-                  fontSize: 11.5,
+                  color: '#64748B',
+                  fontSize: 12,
                   cursor: loading ? 'default' : 'pointer',
                   textDecoration: 'underline',
                 }}
@@ -317,15 +319,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         )}
 
         {/* Link back to Student App */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 28, paddingTop: 18 }}>
+        <div style={{ borderTop: '1px solid #E2E8F0', marginTop: 28, paddingTop: 18 }}>
           <button
             onClick={onGoToApp}
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#818CF8',
-              fontSize: 12.5,
-              fontWeight: 500,
+              color: '#4F46E5',
+              fontSize: 13,
+              fontWeight: 600,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bell, ChevronDown, Laptop, Moon, Sun, Trash2 } from 'lucide-react';
 import type { ApprovalMode, Group, User } from '../../types';
-import { formatFriendlyDate } from '../../lib/auth';
+import { formatFriendlyDate, getExpirationCountdown } from '../../lib/auth';
 import { store } from '../../lib/store';
 import type { ThemePreference } from '../../lib/theme';
 import { LogoutButton } from './LogoutButton';
@@ -146,7 +146,13 @@ export function ProfileScreen({
               >
                 {group.code}
               </span>{' '}
-              · Expires {formatFriendlyDate(group.expires_at)}
+              · {getExpirationCountdown(group.expires_at).isFinalWeek ? (
+                <span style={{ color: 'var(--c-danger, #ef4444)', fontWeight: 600 }}>
+                  {getExpirationCountdown(group.expires_at).label} (Expires {formatFriendlyDate(group.expires_at)})
+                </span>
+              ) : (
+                `Expires ${formatFriendlyDate(group.expires_at)}`
+              )}
             </div>
 
             {/* CR Accordion */}

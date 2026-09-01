@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { ApprovalMode } from '../../types';
 import { Field } from '../common/Field';
-import { LIMITS, validateText } from '../../lib/validation';
+import { LIMITS, validateClassName } from '../../lib/validation';
 
 interface CreateClassSheetProps {
   onClose: () => void;
@@ -11,17 +11,11 @@ interface CreateClassSheetProps {
 
 export function CreateClassSheet({ onClose, onCreate }: CreateClassSheetProps) {
   const [name, setName] = useState('');
-  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('auto');
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('manual');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const nameValidation = validateText(name, {
-    fieldName: 'Class Name',
-    maxLength: LIMITS.CLASS_NAME,
-    minLength: 3,
-    required: true,
-  });
-
+  const nameValidation = validateClassName(name);
   const canCreate = nameValidation.isValid;
 
   const handleSubmit = async (e?: React.FormEvent) => {

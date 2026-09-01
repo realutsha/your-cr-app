@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Core validation and sanitization utilities with strict character limits
  * and HTML/script injection prevention for ClassMate.
  */
@@ -147,5 +147,55 @@ export function validateUrl(url: string | null | undefined, fieldName = 'Resourc
   return {
     isValid: true,
     sanitized: trimmed,
+  };
+}
+
+/**
+ * Validates a class/group name:
+ * - Must contain between 2 and 4 words (multiple spaces count as single separator)
+ * - Must be within LIMITS.CLASS_NAME characters
+ */
+export function validateClassName(name: string | null | undefined): ValidationResult {
+  const raw = name || '';
+  const trimmed = raw.trim();
+
+  if (!trimmed) {
+    return {
+      isValid: false,
+      error: 'Class name is required.',
+      sanitized: '',
+    };
+  }
+
+  if (raw.length > LIMITS.CLASS_NAME) {
+    return {
+      isValid: false,
+      error: `Class name cannot exceed ${LIMITS.CLASS_NAME} characters.`,
+      sanitized: trimmed,
+    };
+  }
+
+  const sanitized = sanitizeText(trimmed);
+  if (!sanitized) {
+    return {
+      isValid: false,
+      error: 'Class name contains only invalid characters or HTML tags.',
+      sanitized: '',
+    };
+  }
+
+  // Split by whitespace to accurately count words (ignoring multiple consecutive spaces)
+  const words = sanitized.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 4) {
+    return {
+      isValid: false,
+      error: 'Class name must contain between 2 and 4 words.',
+      sanitized,
+    };
+  }
+
+  return {
+    isValid: true,
+    sanitized,
   };
 }

@@ -15,30 +15,31 @@ export const AdminAuditTab: React.FC<AdminAuditTabProps> = ({ logs, loading, onR
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 14,
           padding: '14px 18px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div>
-          <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>
             Security & Audit Activity Logs
           </h2>
-          <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', margin: '2px 0 0 0' }}>
+          <p style={{ fontSize: 12.5, color: '#64748B', margin: '2px 0 0 0' }}>
             Immutable record of all administrative operations, shutdown events, and configuration updates.
           </p>
         </div>
         <button
           onClick={onRefresh}
           style={{
-            background: '#1E2438',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: '#F1F5F9',
+            border: '1px solid #CBD5E1',
             borderRadius: 8,
             padding: '8px 14px',
-            color: '#FFFFFF',
+            color: '#0F172A',
             fontSize: 13,
-            fontWeight: 500,
+            fontWeight: 600,
             cursor: 'pointer',
           }}
         >
@@ -48,16 +49,17 @@ export const AdminAuditTab: React.FC<AdminAuditTabProps> = ({ logs, loading, onR
 
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
                 <th style={{ padding: '14px 20px' }}>Timestamp</th>
                 <th style={{ padding: '14px 16px' }}>Action</th>
                 <th style={{ padding: '14px 16px' }}>Administrator</th>
@@ -67,13 +69,13 @@ export const AdminAuditTab: React.FC<AdminAuditTabProps> = ({ logs, loading, onR
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <td colSpan={4} style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
                     Loading audit trail...
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <td colSpan={4} style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
                     No administrative audit events recorded yet.
                   </td>
                 </tr>
@@ -82,26 +84,33 @@ export const AdminAuditTab: React.FC<AdminAuditTabProps> = ({ logs, loading, onR
                   <tr
                     key={log.id}
                     style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      borderBottom: '1px solid #F1F5F9',
                       transition: 'background 120ms ease',
                     }}
                   >
-                    <td style={{ padding: '14px 20px', color: 'rgba(255,255,255,0.6)', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '14px 20px', color: '#64748B', fontSize: 12, whiteSpace: 'nowrap' }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
                         style={{
                           background: log.action.includes('SHUTDOWN')
-                            ? 'rgba(239,68,68,0.15)'
+                            ? '#FEF2F2'
                             : log.action.includes('RESTART')
-                            ? 'rgba(16,185,129,0.15)'
-                            : 'rgba(129,140,248,0.15)',
+                            ? '#ECFDF5'
+                            : '#EEF2FF',
                           color: log.action.includes('SHUTDOWN')
-                            ? '#FCA5A5'
+                            ? '#DC2626'
                             : log.action.includes('RESTART')
-                            ? '#6EE7B7'
-                            : '#A5B4FC',
+                            ? '#059669'
+                            : '#4F46E5',
+                          border: `1px solid ${
+                            log.action.includes('SHUTDOWN')
+                              ? '#FECACA'
+                              : log.action.includes('RESTART')
+                              ? '#A7F3D0'
+                              : '#C7D2FE'
+                          }`,
                           padding: '3px 8px',
                           borderRadius: 6,
                           fontSize: 11.5,
@@ -111,10 +120,10 @@ export const AdminAuditTab: React.FC<AdminAuditTabProps> = ({ logs, loading, onR
                         {log.action}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#FFFFFF', fontWeight: 500 }}>
+                    <td style={{ padding: '14px 16px', color: '#0F172A', fontWeight: 600 }}>
                       {log.performedBy}
                     </td>
-                    <td style={{ padding: '14px 20px', color: 'rgba(255,255,255,0.8)' }}>
+                    <td style={{ padding: '14px 20px', color: '#334155' }}>
                       {log.details}
                     </td>
                   </tr>

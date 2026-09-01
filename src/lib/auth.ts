@@ -94,3 +94,49 @@ export function formatFriendlyDate(dateString: string): string {
     return dateString;
   }
 }
+
+/**
+ * Calculates remaining days/countdown for group expiration.
+ * In final 7 days, returns clear countdown: "7 days remaining", "6 days remaining", ... "1 day remaining".
+ */
+export function getExpirationCountdown(expiresAt: string | null | undefined): {
+  isFinalWeek: boolean;
+  daysRemaining: number;
+  label: string;
+  isExpired: boolean;
+} {
+  if (!expiresAt) {
+    return { isFinalWeek: false, daysRemaining: 999, label: '', isExpired: false };
+  }
+
+  const expTime = new Date(expiresAt).getTime();
+  const now = Date.now();
+  const diffMs = expTime - now;
+
+  if (diffMs <= 0) {
+    return {
+      isFinalWeek: false,
+      daysRemaining: 0,
+      label: 'Class Expired',
+      isExpired: true,
+    };
+  }
+
+  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (daysRemaining <= 7) {
+    return {
+      isFinalWeek: true,
+      daysRemaining,
+      label: daysRemaining === 1 ? '1 day remaining' : `${daysRemaining} days remaining`,
+      isExpired: false,
+    };
+  }
+
+  return {
+    isFinalWeek: false,
+    daysRemaining,
+    label: formatFriendlyDate(expiresAt),
+    isExpired: false,
+  };
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { BookOpen, ChevronRight, Compass, FolderPlus, Plus, Share2, Sparkles } from 'lucide-react';
 import type { Course, Group } from '../../types';
 import { store } from '../../lib/store';
+import { getExpirationCountdown } from '../../lib/auth';
 
 interface HomeScreenProps {
   group: Group;
@@ -93,6 +94,9 @@ export function HomeScreen({
   onCompose,
   onManageCourses,
 }: HomeScreenProps) {
+  // Expiration countdown (e.g. "7 days remaining", "6 days remaining", etc. in final week)
+  const countdown = getExpirationCountdown(group.expires_at);
+
   // Format section header e.g. "Courses Section - i"
   const rawName = (group.name || '').trim();
   const displaySectionHeader = rawName.toLowerCase().startsWith('courses')
@@ -106,15 +110,43 @@ export function HomeScreen({
       {/* 1. ClassMate Main Brand Header */}
       <div
         style={{
-          fontFamily: 'var(--font-head)',
-          fontSize: 28,
-          fontWeight: 800,
-          letterSpacing: '-0.025em',
-          color: 'var(--c-text, #1E2238)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: 28,
         }}
       >
-        ClassMate
+        <div
+          style={{
+            fontFamily: 'var(--font-head)',
+            fontSize: 28,
+            fontWeight: 800,
+            letterSpacing: '-0.025em',
+            color: 'var(--c-text, #1E2238)',
+          }}
+        >
+          ClassMate
+        </div>
+
+        {countdown.isFinalWeek && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: 20,
+              padding: '4px 10px',
+              color: 'var(--c-danger, #ef4444)',
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            <span>⏳ {countdown.label}</span>
+          </div>
+        )}
       </div>
 
       {/* 2. Courses Section Header & Actions */}

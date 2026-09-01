@@ -29,11 +29,11 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
       {error && !stats && (
         <div
           style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
+            background: '#FEF2F2',
+            border: '1px solid #FCA5A5',
             borderRadius: 14,
             padding: '16px 20px',
-            color: '#FCA5A5',
+            color: '#991B1B',
             fontSize: 13.5,
             display: 'flex',
             alignItems: 'center',
@@ -49,7 +49,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
             <button
               onClick={onRetry}
               style={{
-                background: '#EF4444',
+                background: '#DC2626',
                 border: 'none',
                 color: '#FFFFFF',
                 padding: '8px 14px',
@@ -70,16 +70,16 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
       <div
         style={{
           background: isMaintenance
-            ? 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(185,28,28,0.1))'
+            ? '#FEF2F2'
             : isScheduled
-            ? 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.1))'
-            : 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.1))',
+            ? '#FFFBEB'
+            : '#ECFDF5',
           border: `1px solid ${
             isMaintenance
-              ? 'rgba(239,68,68,0.35)'
+              ? '#FCA5A5'
               : isScheduled
-              ? 'rgba(245,158,11,0.35)'
-              : 'rgba(16,185,129,0.35)'
+              ? '#FDE68A'
+              : '#A7F3D0'
           }`,
           borderRadius: 16,
           padding: '20px 24px',
@@ -88,6 +88,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 16,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -98,21 +99,21 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
               borderRadius: '50%',
               background: isMaintenance ? '#EF4444' : isScheduled ? '#F59E0B' : '#10B981',
               boxShadow: isMaintenance
-                ? '0 0 12px #EF4444'
+                ? '0 0 8px rgba(239, 68, 68, 0.5)'
                 : isScheduled
-                ? '0 0 12px #F59E0B'
-                : '0 0 12px #10B981',
+                ? '0 0 8px rgba(245, 158, 11, 0.5)'
+                : '0 0 8px rgba(16, 185, 129, 0.5)',
             }}
           />
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: isMaintenance ? '#FCA5A5' : isScheduled ? '#FDE68A' : '#A7F3D0' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: isMaintenance ? '#B91C1C' : isScheduled ? '#B45309' : '#047857' }}>
               Current Application Status
             </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', marginTop: 2 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: isMaintenance ? '#991B1B' : isScheduled ? '#92400E' : '#065F46', marginTop: 2 }}>
               {isMaintenance ? 'MAINTENANCE MODE (OFFLINE)' : isScheduled ? 'SCHEDULED MAINTENANCE' : 'ONLINE & OPERATIONAL'}
             </div>
             {isMaintenance && system?.shutdownMessage && (
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: '#7F1D1D', marginTop: 4 }}>
                 Message: "{system.shutdownMessage}"
               </div>
             )}
@@ -122,8 +123,8 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
         <button
           onClick={() => onNavigateTab('settings')}
           style={{
-            background: isMaintenance ? '#EF4444' : '#1E2438',
-            border: '1px solid rgba(255,255,255,0.15)',
+            background: isMaintenance ? '#DC2626' : '#4F46E5',
+            border: 'none',
             color: '#FFFFFF',
             padding: '10px 18px',
             borderRadius: 10,
@@ -133,6 +134,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 6,
+            boxShadow: isMaintenance ? '0 2px 6px rgba(220, 38, 38, 0.25)' : '0 2px 6px rgba(79, 70, 229, 0.25)',
           }}
         >
           <span>Manage App Controls &rarr;</span>
@@ -187,7 +189,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           value={stats?.appStatus || 'ONLINE'}
           loading={loading}
           icon="⚡"
-          valueColor={isMaintenance ? '#EF4444' : isScheduled ? '#F59E0B' : '#10B981'}
+          valueColor={isMaintenance ? '#DC2626' : isScheduled ? '#D97706' : '#059669'}
           onClick={() => onNavigateTab('settings')}
         />
       </div>
@@ -195,22 +197,23 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
       {/* Quick Recent Activity */}
       <div
         style={{
-          background: '#121624',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           padding: '20px 24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>Recent Administrative Activity</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A' }}>Recent Administrative Activity</div>
           <button
             onClick={() => onNavigateTab('audit')}
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#818CF8',
+              color: '#4F46E5',
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -219,7 +222,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
         </div>
 
         {auditLogs.length === 0 ? (
-          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, padding: '16px 0' }}>
+          <div style={{ color: '#64748B', fontSize: 13, padding: '16px 0' }}>
             No administrative events recorded yet.
           </div>
         ) : (
@@ -232,17 +235,18 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '12px 16px',
-                  background: 'rgba(255,255,255,0.03)',
+                  background: '#F8FAFC',
+                  border: '1px solid #F1F5F9',
                   borderRadius: 10,
                   fontSize: 13,
                 }}
               >
                 <div>
-                  <span style={{ fontWeight: 600, color: '#FFFFFF' }}>{log.action}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 8 }}>by {log.performedBy}</span>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>{log.details}</div>
+                  <span style={{ fontWeight: 600, color: '#0F172A' }}>{log.action}</span>
+                  <span style={{ color: '#64748B', marginLeft: 8 }}>by {log.performedBy}</span>
+                  <div style={{ fontSize: 12.5, color: '#475569', marginTop: 2 }}>{log.details}</div>
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 12, color: '#94A3B8', whiteSpace: 'nowrap' }}>
                   {new Date(log.timestamp).toLocaleString()}
                 </div>
               </div>
@@ -265,16 +269,17 @@ const MetricCard: React.FC<{
   <div
     onClick={onClick}
     style={{
-      background: '#121624',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: '#FFFFFF',
+      border: '1px solid #E2E8F0',
       borderRadius: 16,
       padding: '20px',
       cursor: onClick ? 'pointer' : 'default',
-      transition: 'border-color 160ms ease, transform 120ms ease',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      transition: 'border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease',
     }}
   >
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {title}
       </div>
       <span style={{ fontSize: 20 }}>{icon}</span>
@@ -285,12 +290,12 @@ const MetricCard: React.FC<{
           height: 34,
           width: '60%',
           borderRadius: 8,
-          background: 'rgba(255,255,255,0.08)',
+          background: '#F1F5F9',
           animation: 'pulse 1.5s ease-in-out infinite',
         }}
       />
     ) : (
-      <div style={{ fontSize: 28, fontWeight: 800, color: valueColor || '#FFFFFF', fontFamily: 'var(--font-head)' }}>
+      <div style={{ fontSize: 28, fontWeight: 800, color: valueColor || '#0F172A', fontFamily: 'var(--font-head)' }}>
         {value}
       </div>
     )}
