@@ -1011,6 +1011,11 @@ class AppStore {
       return { error: 'This class has reached its 4-month expiration.' };
     }
 
+    // If user is already an active member in this group, do not re-request
+    if (this.currentUser.current_group_id === group.id) {
+      return { group, status: 'joined' };
+    }
+
     if (group.approval_mode === 'auto') {
       const newMember: GroupMember = {
         group_id: group.id,
@@ -1024,6 +1029,7 @@ class AppStore {
       if (dbInstance) {
         const userRef = doc(dbInstance, 'users', this.currentUser.id);
         const memberRef = doc(dbInstance, 'groupMembers', `${group.id}_${this.currentUser.id}`);
+        const reqRef = doc(dbInstance, 'joinRequests', `req-${group.id}_${this.currentUser.id}`);
         try {
           // Ensure user doc exists (may not if background sync hasn't completed)
           const userSnap = await getDoc(userRef);
@@ -1040,6 +1046,7 @@ class AppStore {
           }
           await setDoc(memberRef, { ...newMember, expires_at: group.expires_at });
           await updateDoc(userRef, { current_group_id: group.id });
+          deleteDoc(reqRef).catch(() => {});
         } catch (err) {
           console.error('Failed to save group membership:', err);
           const e = err as { message?: string };
@@ -1056,6 +1063,13 @@ class AppStore {
       return { group, status: 'joined' };
     } else {
       const requestId = `req-${group.id}_${this.currentUser.id}`;
+
+      // If a pending request is already active in local memory, return cleanly
+      const existingReq = this.requests.find((r) => r.id === requestId);
+      if (existingReq && existingReq.status === 'pending') {
+        return { group, status: 'pending' };
+      }
+
       const newReq: JoinRequest = {
         id: requestId,
         group_id: group.id,
@@ -1067,7 +1081,12 @@ class AppStore {
         group_name: group.name,
       };
 
-      this.requests.push(newReq);
+      const reqIdx = this.requests.findIndex((r) => r.id === requestId);
+      if (reqIdx >= 0) {
+        this.requests[reqIdx] = newReq;
+      } else {
+        this.requests.push(newReq);
+      }
 
       if (dbInstance) {
         const reqRef = doc(dbInstance, 'joinRequests', requestId);
@@ -1094,6 +1113,9 @@ class AppStore {
     this.members = this.members.filter(
       (m) => !(m.group_id === groupId && m.user_id === userId)
     );
+    this.requests = this.requests.filter(
+      (r) => !(r.group_id === groupId && r.user_id === userId)
+    );
 
     this.currentUser.current_group_id = null;
 
@@ -1110,7 +1132,9 @@ class AppStore {
     if (db) {
       const userRef = doc(db, 'users', userId);
       const memberRef = doc(db, 'groupMembers', `${groupId}_${userId}`);
+      const reqRef = doc(db, 'joinRequests', `req-${groupId}_${userId}`);
       deleteDoc(memberRef).catch(() => {});
+      deleteDoc(reqRef).catch(() => {});
       updateDoc(userRef, { current_group_id: null, role: this.currentUser.role }).catch(() => {});
 
       if (currentGroup.host_id === userId) {

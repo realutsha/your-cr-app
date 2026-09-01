@@ -97,7 +97,10 @@ service cloud.firestore {
       ));
       allow create: if isDiuUser() && 
                        request.resource.data.user_id == request.auth.uid;
-      allow update: if isGroupHost(resource.data.group_id);
+      allow update: if (isDiuUser() || isAdmin()) && (
+        isGroupHost(resource.data.group_id) ||
+        (resource.data.user_id == request.auth.uid && request.resource.data.user_id == request.auth.uid && request.resource.data.status == 'pending')
+      );
       allow delete: if (isDiuUser() || isAdmin()) && (
         resource.data.user_id == request.auth.uid || 
         isGroupHost(resource.data.group_id)
