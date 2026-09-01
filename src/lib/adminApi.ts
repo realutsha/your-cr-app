@@ -92,20 +92,25 @@ export const adminApi = {
 
     try {
       const email = (user.email || '').toLowerCase().trim();
-      let hasAdminClaim = false;
+      const isKnownEmail = AUTHORIZED_ADMIN_EMAILS.includes(email);
 
+      if (isKnownEmail) {
+        setAdminUserSession(user);
+        console.log(`[Admin Dashboard] Admin verification SUCCESS for: ${email}`);
+        return { authorized: true, email };
+      }
+
+      let hasAdminClaim = false;
       try {
-        const tokenResult = await user.getIdTokenResult(true);
+        const tokenResult = await user.getIdTokenResult();
         hasAdminClaim = Boolean(tokenResult.claims.admin);
       } catch (tokenErr) {
         console.warn('[Admin Dashboard] Token claims check error:', tokenErr);
       }
 
-      const isKnownEmail = AUTHORIZED_ADMIN_EMAILS.includes(email);
-
-      if (isKnownEmail || hasAdminClaim) {
+      if (hasAdminClaim) {
         setAdminUserSession(user);
-        console.log(`[Admin Dashboard] Admin verification SUCCESS for: ${email}`);
+        console.log(`[Admin Dashboard] Admin verification SUCCESS via claims for: ${email}`);
         return { authorized: true, email };
       }
 

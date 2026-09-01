@@ -4,6 +4,7 @@ import { auth, db, onAuthStateChanged, firebaseSignOut, type FirebaseUser } from
 import {
   adminApi,
   setAdminUserSession,
+  AUTHORIZED_ADMIN_EMAILS,
   type AdminStats,
   type AdminSystemConfig,
   type AdminGroupItem,
@@ -19,12 +20,12 @@ import { AdminAuditTab } from './AdminAuditTab';
 import { Toast } from '../common/Toast';
 
 type AdminTab = 'overview' | 'groups' | 'users' | 'settings' | 'audit';
-type AuthState = 'checking' | 'unauthenticated' | 'authorized' | 'unauthorized';
 
 export const AdminLayout: React.FC = () => {
-  const [authState, setAuthState] = useState<AuthState>('checking');
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [adminUser, setAdminUser] = useState<FirebaseUser | null>(null);
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
+  const [isAccessDenied, setIsAccessDenied] = useState<boolean>(false);
   const [attemptedEmail, setAttemptedEmail] = useState<string | null>(null);
 
   const adminUserRef = useRef<FirebaseUser | null>(null);
@@ -221,7 +222,10 @@ export const AdminLayout: React.FC = () => {
 
   // Real-time Firestore listeners — auth-gated, only attach when admin is confirmed
   useEffect(() => {
-    if (authState !== 'authorized' || !db) return;
+    if (isAuthLoading || !adminUser || !db) return;
+    const email = (adminUser.email || '').toLowerCase().trim();
+    const isAuthorizedAdmin = email === 'madhurzamutsha@gmail.com' || AUTHORIZED_ADMIN_EMAILS.includes(email);
+    if (!isAuthorizedAdmin) return;
 
     console.log('[Admin Dashboard] Attaching real-time Firestore listeners...');
 
@@ -268,12 +272,12 @@ export const AdminLayout: React.FC = () => {
       usersDocsRef.current = [];
       membersDocsRef.current = [];
     };
-  }, [authState, recomputeFromSnapshots]);
+  }, [isAuthLoading, adminUser, recomputeFromSnapshots]);
 
-  // Subscribe to Firebase Auth state changes
+  // Subscribe to Firebase Auth state changes with strict auth-readiness gating
   useEffect(() => {
     if (!auth) {
-      setAuthState('unauthenticated');
+      setIsAuthLoading(false);
       return;
     }
 
@@ -283,13 +287,14 @@ export const AdminLayout: React.FC = () => {
       if (!isMounted) return;
 
       if (!user) {
-        setAuthState('unauthenticated');
         setAdminUser(null);
         setAdminUserSession(null);
         setAdminEmail(null);
+        setIsAccessDenied(false);
         setAttemptedEmail(null);
+        setIsAuthLoading(false);
 
-        // If on a protected route while logged out, redirect URL to /admin/login
+        // If on a protected route while confirmed logged out, redirect URL to /admin/login
         if (
           typeof window !== 'undefined' &&
           window.location.pathname.startsWith('/admin') &&
@@ -308,9 +313,10 @@ export const AdminLayout: React.FC = () => {
         if (res.authorized) {
           setAdminUser(user);
           setAdminUserSession(user);
-          setAuthState('authorized');
           setAdminEmail(user.email);
+          setIsAccessDenied(false);
           setAttemptedEmail(null);
+          setIsAuthLoading(false);
 
           // If was on /admin/login, redirect URL to /admin
           if (typeof window !== 'undefined' && window.location.pathname === '/admin/login') {
@@ -321,17 +327,21 @@ export const AdminLayout: React.FC = () => {
           // Trigger data query ONLY AFTER session and authorization are confirmed
           loadAuditAndSystem(user);
         } else {
-          setAuthState('unauthorized');
           setAdminUser(null);
           setAdminUserSession(null);
+          setAdminEmail(null);
+          setIsAccessDenied(true);
           setAttemptedEmail(user.email);
+          setIsAuthLoading(false);
         }
       } catch {
         if (!isMounted) return;
-        setAuthState('unauthorized');
         setAdminUser(null);
         setAdminUserSession(null);
+        setAdminEmail(null);
+        setIsAccessDenied(true);
         setAttemptedEmail(user.email);
+        setIsAuthLoading(false);
       }
     });
 
@@ -364,9 +374,10 @@ export const AdminLayout: React.FC = () => {
     }
     setAdminUser(null);
     setAdminUserSession(null);
-    setAuthState('unauthenticated');
     setAdminEmail(null);
+    setIsAccessDenied(false);
     setAttemptedEmail(null);
+    setIsAuthLoading(false);
     if (typeof window !== 'undefined' && window.history) {
       window.history.pushState({}, '', '/admin/login');
     }
@@ -379,8 +390,8 @@ export const AdminLayout: React.FC = () => {
     }
   };
 
-  // 1. Initial Loading State: explicit spinner, NO error text
-  if (authState === 'checking') {
+  // 1. Initial Loading State: explicit spinner while resolving auth from IndexedDB
+  if (isAuthLoading) {
     return (
       <div
         style={{
@@ -411,18 +422,25 @@ export const AdminLayout: React.FC = () => {
   }
 
   // 2. Unauthenticated state OR directly on /admin/login OR unauthorized account
+  const isAuthorized = Boolean(
+    adminUser &&
+    adminUser.email &&
+    (adminUser.email.toLowerCase().trim() === 'madhurzamutsha@gmail.com' ||
+      AUTHORIZED_ADMIN_EMAILS.includes(adminUser.email.toLowerCase().trim()))
+  );
+
   const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/admin/login';
-  if (authState === 'unauthenticated' || authState === 'unauthorized' || isLoginPage) {
+  if (!isAuthorized || isAccessDenied || isLoginPage) {
     return (
       <AdminLogin
         onSuccess={() => {
           // Handled by onAuthStateChanged subscription
         }}
         onGoToApp={handleGoToApp}
-        isAccessDenied={authState === 'unauthorized'}
+        isAccessDenied={isAccessDenied}
         attemptedEmail={attemptedEmail}
         onResetAuth={() => {
-          setAuthState('unauthenticated');
+          setIsAccessDenied(false);
           setAdminUser(null);
           setAdminUserSession(null);
           setAttemptedEmail(null);
