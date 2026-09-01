@@ -216,6 +216,12 @@ class AppStore {
           this.syncFirebaseUserProfile(firebaseUser.uid, email, username).catch((err) => {
             console.warn('Background profile sync error:', err);
           });
+        } else if (email === 'madhurzamutsha@gmail.com') {
+          // Admin account: do not sign out Firebase Auth, but leave student currentUser null
+          this.currentUser = null;
+          this.clearFirestoreListeners();
+          this.authReady = true;
+          this.notify();
         } else {
           // Unauthorized or non-DIU email: immediately sign out
           firebaseSignOut(authInstance).catch(() => {});
@@ -250,6 +256,11 @@ class AppStore {
             const username = extractUsernameFromEmail(email);
             await this.syncFirebaseUserProfile(user.uid, email, username);
             this.authErrorMessage = null;
+          } else if (email === 'madhurzamutsha@gmail.com') {
+            // Admin account redirect: do not sign out
+            this.currentUser = null;
+            this.clearFirestoreListeners();
+            this.notify();
           } else {
             await firebaseSignOut(authInstance).catch(() => {});
             this.currentUser = null;
