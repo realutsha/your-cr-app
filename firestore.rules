@@ -75,11 +75,19 @@ service cloud.firestore {
                        request.resource.data.original_host_id == request.auth.uid;
       // Strictly only the CR host can update group details or delete the group
       // original_host_id cannot be changed once set
+      // Section name can be changed a maximum of 2 times
       allow update: if (isDiuUser() || isAdmin()) && 
                        (resource.data.host_id == request.auth.uid || (resource.data.original_host_id != null && resource.data.original_host_id == request.auth.uid)) &&
                        (
                          (resource.data.original_host_id != null && request.resource.data.original_host_id == resource.data.original_host_id) ||
                          (resource.data.original_host_id == null && request.resource.data.original_host_id == resource.data.host_id)
+                       ) &&
+                       (
+                         request.resource.data.name == resource.data.name ||
+                         (
+                           (resource.data.section_name_edit_count == null ? 0 : resource.data.section_name_edit_count) < 2 &&
+                           request.resource.data.section_name_edit_count == ((resource.data.section_name_edit_count == null ? 0 : resource.data.section_name_edit_count) + 1)
+                         )
                        );
       allow delete: if (isDiuUser() || isAdmin()) && 
                        (resource.data.host_id == request.auth.uid || (resource.data.original_host_id != null && resource.data.original_host_id == request.auth.uid));

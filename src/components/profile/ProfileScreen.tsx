@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, Laptop, Moon, Sun, Trash2 } from 'lucide-react';
+import { Bell, ChevronDown, Edit3, Laptop, Moon, Sun, Trash2 } from 'lucide-react';
 import type { ApprovalMode, Group, User } from '../../types';
 import { formatFriendlyDate, getExpirationCountdown } from '../../lib/auth';
 import { store } from '../../lib/store';
+import { LIMITS } from '../../lib/validation';
 import type { ThemePreference } from '../../lib/theme';
 import { LogoutButton } from './LogoutButton';
 
@@ -43,6 +44,7 @@ interface ProfileScreenProps {
   onDeleteGroup?: () => void;
   onLogout: () => void;
   onToggleApprovalMode?: (mode: ApprovalMode) => void;
+  onUpdateSectionName?: (name: string) => Promise<{ success: boolean; error?: string }>;
   onJoinClick: () => void;
   onCreateClassClick: () => void;
 }
@@ -61,11 +63,19 @@ export function ProfileScreen({
   onDeleteGroup,
   onLogout,
   onToggleApprovalMode,
+  onUpdateSectionName,
   onJoinClick,
   onCreateClassClick,
 }: ProfileScreenProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
+  const [editingSectionName, setEditingSectionName] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [savingSectionName, setSavingSectionName] = useState(false);
+  const [sectionNameError, setSectionNameError] = useState<string | null>(null);
+
+  const editCount = group?.section_name_edit_count ?? 0;
+  const canEditSectionName = Boolean(isCR && group && editCount < 2);
 
   const pendingRequests = isCR && group ? store.getPendingRequestsForHost(user.id) : [];
 
@@ -149,21 +159,44 @@ export function ProfileScreen({
                 gap: 8,
               }}
             >
-              <h3
-                style={{
-                  fontFamily: 'var(--font-head)',
-                  fontSize: 17,
-                  fontWeight: 600,
-                  color: 'var(--c-text)',
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  letterSpacing: '-0.015em',
-                }}
-              >
-                {group.name}
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-head)',
+                    fontSize: 17,
+                    fontWeight: 600,
+                    color: 'var(--c-text)',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '-0.015em',
+                  }}
+                >
+                  {group.name}
+                </h3>
+                {isCR && canEditSectionName && !editingSectionName && (
+                  <button
+                    onClick={() => {
+                      setNewSectionName(group.name);
+                      setEditingSectionName(true);
+                      setSectionNameError(null);
+                    }}
+                    title="Edit section name"
+                    style={{
+                      color: 'var(--c-accent)',
+                      padding: 2,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      background: 'none',
+                      border: 'none',
+                    }}
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                )}
+              </div>
               {isCR && (
                 <span
                   style={{
@@ -179,6 +212,131 @@ export function ProfileScreen({
                 </span>
               )}
             </div>
+
+            {editingSectionName && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (savingSectionName || !newSectionName.trim()) return;
+                  setSavingSectionName(true);
+                  setSectionNameError(null);
+                  try {
+                    const res = await onUpdateSectionName?.(newSectionName);
+                    if (res?.success) {
+                      setEditingSectionName(false);
+                    } else {
+                      setSectionNameError(res?.error || 'Failed to update section name.');
+                    }
+                  } catch (err: unknown) {
+                    const eObj = err as { message?: string };
+                    setSectionNameError(eObj?.message || 'Failed to update section name.');
+                  } finally {
+                    setSavingSectionName(false);
+                  }
+                }}
+                style={{
+                  marginTop: 10,
+                  padding: '10px 12px',
+                  background: 'var(--c-card-subtle)',
+                  borderRadius: 10,
+                  border: '1px solid var(--c-hairline)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: 'var(--c-text-soft)',
+                    marginBottom: 6,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>Edit Section Name</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-accent)' }}>
+                    {2 - editCount} edit{2 - editCount === 1 ? '' : 's'} left
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  placeholder="e.g. Software Engineering — Section I"
+                  maxLength={LIMITS.CLASS_NAME}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: 8,
+                    border: '1px solid var(--c-hairline-strong)',
+                    background: 'var(--c-card-bg)',
+                    color: 'var(--c-text)',
+                    fontSize: 13.5,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    marginBottom: 6,
+                  }}
+                />
+                {sectionNameError && (
+                  <div style={{ fontSize: 11.5, color: 'var(--c-danger)', marginBottom: 6 }}>
+                    {sectionNameError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSectionName(false);
+                      setSectionNameError(null);
+                    }}
+                    disabled={savingSectionName}
+                    style={{
+                      padding: '5px 10px',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: 'var(--c-text-soft)',
+                      borderRadius: 6,
+                      border: '1px solid var(--c-hairline)',
+                      cursor: 'pointer',
+                      background: 'none',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      savingSectionName ||
+                      !newSectionName.trim() ||
+                      newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                    }
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      background: 'var(--c-accent)',
+                      borderRadius: 6,
+                      border: 'none',
+                      cursor:
+                        savingSectionName ||
+                        !newSectionName.trim() ||
+                        newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                          ? 'default'
+                          : 'pointer',
+                      opacity:
+                        savingSectionName ||
+                        !newSectionName.trim() ||
+                        newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                          ? 0.6
+                          : 1,
+                    }}
+                  >
+                    {savingSectionName ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </form>
+            )}
 
             <p
               style={{
@@ -234,7 +392,7 @@ export function ProfileScreen({
 
                 <div
                   style={{
-                    maxHeight: detailsOpen ? 260 : 0,
+                    maxHeight: detailsOpen ? 300 : 0,
                     opacity: detailsOpen ? 1 : 0,
                     overflow: 'hidden',
                     transition: 'max-height 240ms ease, opacity 180ms ease',
@@ -243,6 +401,49 @@ export function ProfileScreen({
                   <div style={{ paddingTop: 8 }}>
                     <InfoRow label="Members" value={group.member_count || 1} />
                     <InfoRow label="Class started" value={formatFriendlyDate(group.created_at)} />
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 0',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-text-faint)' }}>
+                        Section name
+                      </span>
+                      {canEditSectionName ? (
+                        <button
+                          onClick={() => {
+                            setNewSectionName(group.name);
+                            setEditingSectionName(true);
+                            setSectionNameError(null);
+                          }}
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: 'var(--c-accent)',
+                            cursor: 'pointer',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                          }}
+                        >
+                          Edit ({2 - editCount} left)
+                        </button>
+                      ) : (
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 12.5,
+                            color: 'var(--c-text-faint)',
+                          }}
+                        >
+                          {editCount >= 2 ? '2/2 edits used' : `${editCount}/2 edits`}
+                        </span>
+                      )}
+                    </div>
                     <div
                       style={{
                         display: 'flex',

@@ -26,6 +26,7 @@ export interface Group {
   status: GroupStatus;
   member_count?: number;
   host_username?: string;
+  section_name_edit_count?: number;
 }
 
 export type MemberStatus = 'approved' | 'pending' | 'rejected' | 'removed';

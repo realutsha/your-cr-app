@@ -11,6 +11,7 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import {
   auth,
@@ -898,6 +899,7 @@ class AppStore {
       expires_at: expiresAt,
       status: 'active',
       member_count: 1,
+      section_name_edit_count: 0,
     };
 
     const hostMember: GroupMember = {
@@ -1385,6 +1387,92 @@ class AppStore {
       this.persist();
       this.notify();
     }
+  }
+
+  public async updateSectionName(
+    groupId: string,
+    newName: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.currentUser) {
+      return { success: false, error: 'Not authenticated.' };
+    }
+
+    const group = this.groups.find((g) => g.id === groupId);
+    if (!group) {
+      return { success: false, error: 'Group not found.' };
+    }
+
+    // 1. Authorization: Only CR / Host can edit section name
+    const isHost =
+      group.host_id === this.currentUser.id || group.original_host_id === this.currentUser.id;
+    if (!isHost) {
+      return { success: false, error: 'Only the CR/Host can edit the section name.' };
+    }
+
+    // 2. Validate new name using project's existing validation
+    const validation = validateClassName(newName);
+    if (!validation.isValid) {
+      return { success: false, error: validation.error };
+    }
+    const sanitizedName = validation.sanitized;
+
+    // 3. Must be actually different
+    if (sanitizedName.toLowerCase() === group.name.trim().toLowerCase()) {
+      return { success: false, error: 'The new section name is identical to the current name.' };
+    }
+
+    // 4. Check edit limit (max 2)
+    const currentCount = group.section_name_edit_count ?? 0;
+    if (currentCount >= 2) {
+      return { success: false, error: 'The section name can only be edited a maximum of 2 times.' };
+    }
+
+    const nextCount = currentCount + 1;
+
+    // 5. Update in Firestore with transaction
+    if (db) {
+      try {
+        const groupRef = doc(db, 'groups', groupId);
+        await runTransaction(db, async (transaction) => {
+          const groupSnap = await transaction.get(groupRef);
+          if (!groupSnap.exists()) {
+            throw new Error('Group not found.');
+          }
+          const serverGroup = groupSnap.data() as Group;
+          const serverIsHost =
+            serverGroup.host_id === this.currentUser?.id ||
+            serverGroup.original_host_id === this.currentUser?.id;
+          if (!serverIsHost) {
+            throw new Error('Unauthorized: Only the CR/Host can edit the section name.');
+          }
+
+          const serverCount = serverGroup.section_name_edit_count ?? 0;
+          if (serverCount >= 2) {
+            throw new Error('Section name can only be edited a maximum of 2 times.');
+          }
+
+          if (serverGroup.name.trim().toLowerCase() === sanitizedName.toLowerCase()) {
+            throw new Error('The new section name is identical to the current name.');
+          }
+
+          transaction.update(groupRef, {
+            name: sanitizedName,
+            section_name_edit_count: serverCount + 1,
+          });
+        });
+      } catch (err: unknown) {
+        console.error('Firestore section name update failed:', err);
+        const e = err as { message?: string };
+        return { success: false, error: e?.message || 'Failed to update section name.' };
+      }
+    }
+
+    group.name = sanitizedName;
+    group.section_name_edit_count = nextCount;
+    this.persist();
+    this.notify();
+
+    return { success: true };
   }
 
   public getPendingRequestsForHost(hostId: string): JoinRequest[] {

@@ -684,6 +684,15 @@ export function App() {
                 showToast(`Approval mode set to ${mode}`);
               }
             }}
+            onUpdateSectionName={async (name: string) => {
+              if (!currentGroup) return { success: false, error: 'No active class' };
+              const res = await store.updateSectionName(currentGroup.id, name);
+              if (res.success) {
+                showToast('Section name updated successfully');
+                setCurrentGroup(store.getCurrentUserGroup());
+              }
+              return res;
+            }}
             onJoinClick={() => {
               pushNavState();
               setJoinOpen(true);
