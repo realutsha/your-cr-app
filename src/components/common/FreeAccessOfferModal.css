@@ -1,0 +1,199 @@
+/* From Uiverse.io by dexter-st - Adapted for ClassMate 4-Month Free Trial Popup */
+
+.cm-trial-popup {
+  position: relative;
+}
+
+.cm-trial-button-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  margin-bottom: 12px;
+  padding: 16px 0;
+  box-sizing: border-box;
+}
+
+/* Animated Drawers */
+.cm-trial-drawer {
+  position: absolute;
+  left: 50%;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--c-accent, #007aff);
+  background: var(--c-accent-bg, rgba(0, 122, 255, 0.10));
+  border: 1px solid var(--c-accent-glow, rgba(0, 122, 255, 0.25));
+  padding: 3px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+  box-sizing: border-box;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.cm-trial-transition-top {
+  top: 16px;
+  transform: translate(-50%, 0);
+}
+
+.cm-trial-transition-bottom {
+  bottom: 16px;
+  transform: translate(-50%, 0);
+}
+
+/* Hover / Focus Transitions for Drawers */
+@media (hover: hover) and (pointer: fine) {
+  .cm-trial-button-container:hover .cm-trial-transition-top,
+  .cm-trial-button-container:focus-within .cm-trial-transition-top {
+    transform: translate(-50%, -18px);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.18);
+  }
+
+  .cm-trial-button-container:hover .cm-trial-transition-bottom,
+  .cm-trial-button-container:focus-within .cm-trial-transition-bottom {
+    transform: translate(-50%, 18px);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.18);
+  }
+}
+
+/* Active / Pressed state for Drawers */
+.cm-trial-button-container:active .cm-trial-transition-top {
+  transform: translate(-50%, -8px);
+}
+
+.cm-trial-button-container:active .cm-trial-transition-bottom {
+  transform: translate(-50%, 8px);
+}
+
+/* Primary CTA Button */
+.cm-trial-button {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+  font-size: 16.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--c-accent, #007aff);
+  border: none;
+  border-radius: 14px;
+  padding: 14px 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--c-accent-glow, rgba(0, 122, 255, 0.35));
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s ease,
+    opacity 0.2s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cm-trial-button-container:hover .cm-trial-button {
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px var(--c-accent-glow, rgba(0, 122, 255, 0.45));
+  }
+}
+
+.cm-trial-button:active,
+.cm-trial-button-container:active .cm-trial-button {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px var(--c-accent-glow, rgba(0, 122, 255, 0.3));
+}
+
+.cm-trial-button:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.cm-trial-button-text {
+  position: relative;
+  z-index: 1;
+  letter-spacing: -0.01em;
+}
+
+/* Corner SVG Elements */
+.cm-trial-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  color: var(--c-accent, #007aff);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 1;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s ease;
+}
+
+.cm-trial-corner-tl {
+  top: 12px;
+  left: -2px;
+}
+
+.cm-trial-corner-tr {
+  top: 12px;
+  right: -2px;
+}
+
+.cm-trial-corner-bl {
+  bottom: 12px;
+  left: -2px;
+}
+
+.cm-trial-corner-br {
+  bottom: 12px;
+  right: -2px;
+}
+
+/* Corner Expansion on Hover / Focus */
+@media (hover: hover) and (pointer: fine) {
+  .cm-trial-button-container:hover .cm-trial-corner-tl,
+  .cm-trial-button-container:focus-within .cm-trial-corner-tl {
+    transform: translate(-4px, -4px);
+    opacity: 0.9;
+  }
+
+  .cm-trial-button-container:hover .cm-trial-corner-tr,
+  .cm-trial-button-container:focus-within .cm-trial-corner-tr {
+    transform: translate(4px, -4px);
+    opacity: 0.9;
+  }
+
+  .cm-trial-button-container:hover .cm-trial-corner-bl,
+  .cm-trial-button-container:focus-within .cm-trial-corner-bl {
+    transform: translate(-4px, 4px);
+    opacity: 0.9;
+  }
+
+  .cm-trial-button-container:hover .cm-trial-corner-br,
+  .cm-trial-button-container:focus-within .cm-trial-corner-br {
+    transform: translate(4px, 4px);
+    opacity: 0.9;
+  }
+}
+
+.cm-trial-button-container:active .cm-trial-corner-tl,
+.cm-trial-button-container:active .cm-trial-corner-tr,
+.cm-trial-button-container:active .cm-trial-corner-bl,
+.cm-trial-button-container:active .cm-trial-corner-br {
+  transform: translate(0, 0);
+  opacity: 0.5;
+}

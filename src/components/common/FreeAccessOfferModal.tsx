@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import './FreeAccessOfferModal.css';
 
 interface FreeAccessOfferModalProps {
   onClaim: () => void | Promise<void>;
@@ -73,6 +74,7 @@ export function FreeAccessOfferModal({ onClaim }: FreeAccessOfferModalProps) {
         aria-modal="true"
         aria-labelledby="free-access-title"
         aria-describedby="free-access-subtitle"
+        className="cm-trial-popup"
         style={{
           position: 'relative',
           width: '100%',
@@ -166,38 +168,48 @@ export function FreeAccessOfferModal({ onClaim }: FreeAccessOfferModalProps) {
             fontSize: 16,
             fontWeight: 400,
             color: 'var(--c-text-soft)',
-            margin: '0 0 28px',
+            margin: '0 0 20px',
             lineHeight: 1.45,
           }}
         >
           One Semester of ClassMate — completely free.
         </p>
 
-        {/* Primary Action Button: Claim & Continue */}
-        <button
-          type="button"
-          onClick={handleClaim}
-          disabled={claiming}
-          autoFocus
-          style={{
-            width: '100%',
-            fontFamily: 'var(--font-body)',
-            fontSize: 17,
-            fontWeight: 500,
-            color: '#FFFFFF',
-            background: 'var(--c-accent)',
-            border: 'none',
-            borderRadius: 14,
-            padding: '14px 18px',
-            cursor: claiming ? 'default' : 'pointer',
-            opacity: claiming ? 0.8 : 1,
-            boxShadow: '0 2px 10px var(--c-accent-glow)',
-            transition: 'opacity 150ms ease, transform 150ms ease',
-            marginBottom: 12,
-          }}
-        >
-          {claiming ? 'Claiming Access...' : 'Claim & Continue'}
-        </button>
+        {/* Primary Action Button: Uiverse dexter-st adapted component */}
+        <div className="cm-trial-button-container">
+          <div className="cm-trial-drawer cm-trial-transition-top">
+            expires in...
+          </div>
+
+          <div className="cm-trial-drawer cm-trial-transition-bottom">
+            ...4 months
+          </div>
+
+          <button
+            type="button"
+            onClick={handleClaim}
+            disabled={claiming}
+            autoFocus
+            className="cm-trial-button"
+          >
+            <span className="cm-trial-button-text">
+              {claiming ? 'Claiming Access...' : 'Claim & Continue'}
+            </span>
+          </button>
+
+          <svg className="cm-trial-corner cm-trial-corner-tl" viewBox="0 0 10 10" fill="none">
+            <path d="M1 9V1H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <svg className="cm-trial-corner cm-trial-corner-tr" viewBox="0 0 10 10" fill="none">
+            <path d="M9 9V1H1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <svg className="cm-trial-corner cm-trial-corner-bl" viewBox="0 0 10 10" fill="none">
+            <path d="M1 1V9H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <svg className="cm-trial-corner cm-trial-corner-br" viewBox="0 0 10 10" fill="none">
+            <path d="M9 1V9H1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </div>
 
         {/* Secondary Option: Follow ClassMate on Facebook */}
         <button
