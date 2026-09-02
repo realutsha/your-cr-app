@@ -1,36 +1,20 @@
-import { FolderPlus, Plus } from 'lucide-react';
-import type { Course, Group } from '../../types';
-import { store } from '../../lib/store';
+import { ChevronRight } from 'lucide-react';
+import type { Group } from '../../types';
 import { getExpirationCountdown } from '../../lib/auth';
-import './CourseRow.css';
+import { store } from '../../lib/store';
 
 interface HomeScreenProps {
   group: Group;
-  courses: Course[];
-  isCR: boolean;
-  onSelectCourse: (course: Course) => void;
-  onCompose: () => void;
-  onManageCourses: () => void;
+  onShowCourses: () => void;
 }
 
 export function HomeScreen({
   group,
-  courses,
-  isCR,
-  onSelectCourse,
-  onCompose,
-  onManageCourses,
+  onShowCourses,
 }: HomeScreenProps) {
   // Expiration countdown (e.g. "7 days remaining", "6 days remaining", etc. in final week)
   const countdown = getExpirationCountdown(group.expires_at);
-
-  // Format section header e.g. "Courses — Section 21"
-  const rawName = (group.name || '').trim();
-  const displaySectionHeader = rawName.toLowerCase().startsWith('courses')
-    ? rawName
-    : rawName.toLowerCase().includes('section')
-    ? `Courses ${rawName}`
-    : `Courses — ${rawName}`;
+  const totalUnreadCount = store.getTotalUnreadCount();
 
   return (
     <div style={{ paddingTop: 4 }}>
@@ -40,7 +24,7 @@ export function HomeScreen({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 16,
         }}
       >
         <h1
@@ -78,150 +62,72 @@ export function HomeScreen({
         )}
       </header>
 
-      {/* 2. Courses Section Header & CR Actions */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-          paddingLeft: 4,
-        }}
-      >
-        <h2
+      {/* 2. Current Section / Class Name */}
+      <div style={{ marginBottom: 28, paddingLeft: 2 }}>
+        <p
           style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: 600,
-            color: 'var(--c-text)',
+            color: 'var(--c-text-soft)',
             letterSpacing: '-0.015em',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '75%',
             margin: 0,
+            lineHeight: 1.35,
           }}
         >
-          {displaySectionHeader}
-        </h2>
-
-        {isCR && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              onClick={onManageCourses}
-              title="Add or manage courses"
-              style={{
-                color: 'var(--c-accent)',
-                padding: 4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--c-accent-bg)',
-                borderRadius: 8,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <FolderPlus size={18} strokeWidth={2} />
-            </button>
-            <button
-              onClick={onCompose}
-              title="New academic update"
-              style={{
-                color: 'var(--c-accent)',
-                padding: 4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--c-accent-bg)',
-                borderRadius: 8,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <Plus size={19} strokeWidth={2.2} />
-            </button>
-          </div>
-        )}
+          {group.name}
+        </p>
       </div>
 
-      {/* 3. Course List */}
-      {courses.length === 0 ? (
-        <div
+      {/* 3. Main Action: Show Courses Button */}
+      <div>
+        <button
+          type="button"
+          onClick={onShowCourses}
           style={{
-            background: 'var(--c-card-bg)',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '16px 22px',
+            background: 'var(--c-accent, #007aff)',
+            color: '#FFFFFF',
+            fontFamily: 'var(--font-head, -apple-system, sans-serif)',
+            fontSize: 17,
+            fontWeight: 600,
             borderRadius: 16,
-            border: '1px solid var(--c-hairline)',
-            textAlign: 'center',
-            padding: '48px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 4px 16px var(--c-accent-glow, rgba(0, 122, 255, 0.3))',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            boxSizing: 'border-box',
           }}
         >
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--c-text-faint)', marginBottom: 16 }}>
-            {isCR ? 'No courses added yet. Define courses for your class.' : 'No courses created for this class yet.'}
-          </div>
-          {isCR && (
-            <button
-              onClick={onManageCourses}
+          <span>Show Courses</span>
+          {totalUnreadCount > 0 && (
+            <span
               style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#FFFFFF',
-                background: 'var(--c-accent)',
-                padding: '10px 18px',
-                borderRadius: 12,
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px var(--c-accent-glow)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 22,
+                height: 22,
+                padding: '0 6px',
+                borderRadius: 999,
+                background: '#FFFFFF',
+                color: 'var(--c-accent, #007aff)',
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono, monospace)',
               }}
             >
-              Add first course
-            </button>
+              {totalUnreadCount}
+            </span>
           )}
-        </div>
-      ) : (
-        <div className="cm-course-list">
-          {courses.map((course) => {
-            const updateCount = store.getCourseUpdateCount(course.id);
-
-            return (
-              <div
-                key={course.id}
-                className="cm-course-row"
-                role="button"
-                tabIndex={0}
-                onClick={() => onSelectCourse(course)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectCourse(course);
-                  }
-                }}
-              >
-                <div className="cm-course-content">
-                  <div className="cm-course-header">
-                    <p className="cm-course-title">
-                      {course.name}
-                    </p>
-
-                    <div className="cm-course-meta">
-                      {updateCount > 0 && (
-                        <span className="cm-course-badge">
-                          {updateCount}
-                        </span>
-                      )}
-                      <span className="cm-course-arrow">
-                        ›
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+          <ChevronRight size={19} strokeWidth={2.5} />
+        </button>
+      </div>
     </div>
   );
 }

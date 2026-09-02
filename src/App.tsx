@@ -27,6 +27,7 @@ import { IntroPopup } from './components/common/IntroPopup';
 import { FreeAccessOfferModal } from './components/common/FreeAccessOfferModal';
 import { BottomNav, NAV_H } from './components/navigation/BottomNav';
 import { HomeScreen } from './components/home/HomeScreen';
+import { CoursesListScreen } from './components/course/CoursesListScreen';
 import { CourseScreen } from './components/course/CourseScreen';
 import { CategoryScreen } from './components/category/CategoryScreen';
 import { DetailSheet } from './components/update/DetailSheet';
@@ -87,6 +88,7 @@ export function App() {
   }, []);
 
   // Navigation Hierarchy State
+  const [viewingCourses, setViewingCourses] = useState<boolean>(false);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<AcademicCategory | null>(null);
 
@@ -138,6 +140,8 @@ export function App() {
         setActiveCategory(null);
       } else if (activeCourseId) {
         setActiveCourseId(null);
+      } else if (viewingCourses) {
+        setViewingCourses(false);
       } else if (screen === 'profile') {
         setScreen('home');
       }
@@ -145,7 +149,7 @@ export function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [confirm, selectedUpdate, composeOpen, manageCoursesOpen, joinOpen, createClassOpen, activeCategory, activeCourseId, screen]);
+  }, [confirm, selectedUpdate, composeOpen, manageCoursesOpen, joinOpen, createClassOpen, activeCategory, activeCourseId, viewingCourses, screen]);
 
   // Push history state whenever a sub-view or sheet opens
   const pushNavState = useCallback(() => {
@@ -591,12 +595,21 @@ export function App() {
                 </button>
               </div>
             </div>
-          ) : activeCourseId === null ? (
-            /* 1. HOME: Show Courses with Unread Badges */
+          ) : !viewingCourses && activeCourseId === null ? (
+            /* 1. HOME LANDING: ClassMate, Section Name, Show Courses Button */
             <HomeScreen
               group={currentGroup}
+              onShowCourses={() => {
+                pushNavState();
+                setViewingCourses(true);
+              }}
+            />
+          ) : activeCourseId === null ? (
+            /* 2. ALL COURSES: Course List with Unread Badges */
+            <CoursesListScreen
               courses={courses}
               isCR={isCR}
+              onBack={() => setViewingCourses(false)}
               onSelectCourse={(c) => {
                 pushNavState();
                 setActiveCourseId(c.id);
@@ -615,7 +628,7 @@ export function App() {
               }}
             />
           ) : activeCategory === null && activeCourse ? (
-            /* 2. COURSE SCREEN: Show 4 Fixed Categories */
+            /* 3. COURSE SCREEN: Show 4 Fixed Categories */
             <CourseScreen
               course={activeCourse}
               isCR={isCR}
@@ -638,7 +651,7 @@ export function App() {
               }}
             />
           ) : activeCourse && activeCategory ? (
-            /* 3. CATEGORY SCREEN: List Updates for that Category */
+            /* 4. CATEGORY SCREEN: List Updates for that Category */
             <CategoryScreen
               course={activeCourse}
               categoryKey={activeCategory}
@@ -709,6 +722,11 @@ export function App() {
       <BottomNav
         screen={screen}
         setScreen={(s) => {
+          if (s === 'home' && screen === 'home') {
+            setActiveCategory(null);
+            setActiveCourseId(null);
+            setViewingCourses(false);
+          }
           setScreen(s);
         }}
         unreadCount={totalUnreadCount}
