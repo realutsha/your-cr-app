@@ -25,7 +25,13 @@ service cloud.firestore {
     function isGroupHost(groupId) {
       return (isDiuUser() || isAdmin()) && 
              exists(/databases/$(database)/documents/groups/$(groupId)) &&
-             get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid;
+             (
+               get(/databases/$(database)/documents/groups/$(groupId)).data.host_id == request.auth.uid ||
+               (
+                 get(/databases/$(database)/documents/groups/$(groupId)).data.original_host_id != null &&
+                 get(/databases/$(database)/documents/groups/$(groupId)).data.original_host_id == request.auth.uid
+               )
+             );
     }
 
     function isGroupMember(groupId) {
@@ -65,9 +71,18 @@ service cloud.firestore {
       allow read: if isDiuUser() || isAdmin();
       // Only verified DIU users can create a new group as host
       allow create: if (isDiuUser() || isAdmin()) && 
-                       request.resource.data.host_id == request.auth.uid;
+                       request.resource.data.host_id == request.auth.uid &&
+                       request.resource.data.original_host_id == request.auth.uid;
       // Strictly only the CR host can update group details or delete the group
-      allow update, delete: if (isDiuUser() || isAdmin()) && resource.data.host_id == request.auth.uid;
+      // original_host_id cannot be changed once set
+      allow update: if (isDiuUser() || isAdmin()) && 
+                       (resource.data.host_id == request.auth.uid || (resource.data.original_host_id != null && resource.data.original_host_id == request.auth.uid)) &&
+                       (
+                         (resource.data.original_host_id != null && request.resource.data.original_host_id == resource.data.original_host_id) ||
+                         (resource.data.original_host_id == null && request.resource.data.original_host_id == resource.data.host_id)
+                       );
+      allow delete: if (isDiuUser() || isAdmin()) && 
+                       (resource.data.host_id == request.auth.uid || (resource.data.original_host_id != null && resource.data.original_host_id == request.auth.uid));
     }
 
     // 3. GROUP MEMBERS COLLECTION

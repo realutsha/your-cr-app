@@ -19,6 +19,7 @@ export interface Group {
   name: string; // e.g. "Software Engineering — Section I"
   code: string; // 6-character code e.g. "K7X4P9"
   host_id: string;
+  original_host_id?: string; // Immutable original creator UID for permanent host recovery
   approval_mode: ApprovalMode;
   created_at: string;
   expires_at: string; // Exactly 4 months from creation

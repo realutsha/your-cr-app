@@ -19,8 +19,15 @@ export function JoinSheet({ onClose, onJoin }: JoinSheetProps) {
 
   const canJoin = codeValidation.isValid;
 
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (canJoin) {
+      onJoin(codeValidation.sanitized);
+    }
+  };
+
   return (
-    <div style={{ padding: '0 20px 32px' }}>
+    <form onSubmit={handleSubmit} style={{ padding: '0 20px 32px' }}>
       <div
         style={{
           display: 'flex',
@@ -34,8 +41,8 @@ export function JoinSheet({ onClose, onJoin }: JoinSheetProps) {
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button
+            type="submit"
             disabled={!canJoin}
-            onClick={() => onJoin(codeValidation.sanitized)}
             style={{
               fontFamily: 'var(--font-body)',
               fontSize: 14.5,
@@ -49,7 +56,11 @@ export function JoinSheet({ onClose, onJoin }: JoinSheetProps) {
           >
             Join
           </button>
-          <button onClick={onClose} style={{ color: 'var(--c-text-faint)', padding: 2, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ color: 'var(--c-text-faint)', padding: 2, border: 'none', background: 'transparent', cursor: 'pointer' }}
+          >
             <X size={16} />
           </button>
         </div>
@@ -106,6 +117,6 @@ export function JoinSheet({ onClose, onJoin }: JoinSheetProps) {
       <div style={{ fontFamily: 'var(--font-body)', fontSize: 12.5, color: 'var(--c-text-faint)', lineHeight: 1.5 }}>
         Ask your Class Representative for their unique 6-character class code.
       </div>
-    </div>
+    </form>
   );
 }

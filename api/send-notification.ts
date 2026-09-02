@@ -65,7 +65,8 @@ export default async function handler(req: any, res: any) {
 
     const groupDoc = await groupRes.json();
     const hostId = groupDoc.fields?.host_id?.stringValue;
-    if (hostId !== callerUid) {
+    const originalHostId = groupDoc.fields?.original_host_id?.stringValue;
+    if (hostId !== callerUid && originalHostId !== callerUid) {
       return res.status(403).json({ error: 'Only the CR host can dispatch notifications.' });
     }
 

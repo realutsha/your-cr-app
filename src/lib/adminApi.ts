@@ -182,6 +182,7 @@ export const adminApi = {
 
     groupsDocs.forEach((g) => {
       if (g.host_id) hostUserIds.add(g.host_id);
+      if (g.original_host_id) hostUserIds.add(g.original_host_id);
     });
 
     const totalHosts = hostUserIds.size;
@@ -259,12 +260,12 @@ export const adminApi = {
 
     return groupsSnapDocs.map((d) => {
       const g = d.data();
-      const host = userMap.get(g.host_id);
+      const host = userMap.get(g.host_id) || (g.original_host_id ? userMap.get(g.original_host_id) : undefined);
       return {
         id: d.id,
         name: g.name || 'Unnamed Class',
         code: g.code || '',
-        host_id: g.host_id || '',
+        host_id: g.host_id || g.original_host_id || '',
         host_username: host?.username || g.host_username || 'Host',
         host_email: host?.email || undefined,
         member_count: memberCountsByGroup[d.id] || g.member_count || 1,
@@ -318,17 +319,18 @@ export const adminApi = {
 
     let hostEmail = '';
     let hostUsername = g.host_username || 'Host';
+    const hostUid = g.host_id || g.original_host_id;
 
-    if (g.host_id) {
+    if (hostUid) {
       try {
-        const hostDocSnap = await getDoc(doc(db, 'users', g.host_id));
+        const hostDocSnap = await getDoc(doc(db, 'users', hostUid));
         if (hostDocSnap.exists()) {
           const hData = hostDocSnap.data();
           hostEmail = hData.email || '';
           hostUsername = hData.username || hostUsername;
         }
       } catch (err: any) {
-        console.warn(`[Admin Dashboard] Host user lookup failed for "${g.host_id}":`, err?.message || err);
+        console.warn(`[Admin Dashboard] Host user lookup failed for "${hostUid}":`, err?.message || err);
       }
     }
 
@@ -337,7 +339,7 @@ export const adminApi = {
         id: groupId,
         name: g.name || 'Unnamed Class',
         code: g.code || '',
-        host_id: g.host_id || '',
+        host_id: g.host_id || g.original_host_id || '',
         host_username: hostUsername,
         host_email: hostEmail || undefined,
         member_count: members.length || g.member_count || 1,
@@ -377,6 +379,7 @@ export const adminApi = {
         const g = d.data();
         groupMap.set(d.id, g);
         if (g.host_id) hostUserIds.add(g.host_id);
+        if (g.original_host_id) hostUserIds.add(g.original_host_id);
       });
     } catch (err: any) {
       console.warn('[Admin Dashboard] Secondary group lookup failed in getUsers:', err?.message || err);

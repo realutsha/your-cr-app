@@ -203,7 +203,11 @@ export function App() {
     }
   }, [currentGroupId]);
 
-  const isCR = currentUser ? currentUser.role === 'cr' || currentUser.id === currentGroup?.host_id : false;
+  const isCR = currentUser
+    ? currentUser.role === 'cr' ||
+      currentUser.id === currentGroup?.host_id ||
+      (Boolean(currentGroup?.original_host_id) && currentUser.id === currentGroup?.original_host_id)
+    : false;
   const totalUnreadCount = store.getTotalUnreadCount();
   const activeCourse = courses.find((c) => c.id === activeCourseId);
 
@@ -312,7 +316,11 @@ export function App() {
       showToast(res.error);
     } else if (res.status === 'joined') {
       setJoinOpen(false);
-      showToast(`Joined ${res.group?.name}`);
+      if (res.isHostRecovery) {
+        showToast('Class restored');
+      } else {
+        showToast(`Joined ${res.group?.name}`);
+      }
     } else {
       setJoinOpen(false);
       showToast('Request submitted for CR approval');

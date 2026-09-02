@@ -342,30 +342,28 @@ class AppStore {
         hasSeenFreeAccessOffer = Boolean(data.has_seen_free_access_offer);
       }
 
-      // If current_group_id is null on user doc, check in parallel whether user is host or approved member
+      // If current_group_id is null on user doc, check if user has an active approved membership in groupMembers
       if (!currentGroupId) {
-        const [hostGroupsSnap, memberSnap] = await Promise.all([
-          getDocs(
-            query(collection(dbInstance, 'groups'), where('host_id', '==', uid), where('status', '==', 'active'))
-          ).catch(() => null),
-          getDocs(
-            query(collection(dbInstance, 'groupMembers'), where('user_id', '==', uid), where('status', '==', 'approved'))
-          ).catch(() => null),
-        ]);
+        const memberSnap = await getDocs(
+          query(collection(dbInstance, 'groupMembers'), where('user_id', '==', uid), where('status', '==', 'approved'))
+        ).catch(() => null);
 
-        if (hostGroupsSnap && !hostGroupsSnap.empty) {
-          const groupDoc = hostGroupsSnap.docs[0];
-          currentGroupId = groupDoc.id;
-          userRole = 'cr';
-          const groupData = { id: groupDoc.id, ...groupDoc.data() } as Group;
-          const gIdx = this.groups.findIndex((g) => g.id === groupDoc.id);
-          if (gIdx >= 0) this.groups[gIdx] = groupData;
-          else this.groups.push(groupData);
-          updateDoc(userRef, { current_group_id: currentGroupId, role: 'cr' }).catch(() => {});
-        } else if (memberSnap && !memberSnap.empty) {
+        if (memberSnap && !memberSnap.empty) {
           const mData = memberSnap.docs[0].data() as GroupMember;
           currentGroupId = mData.group_id;
-          updateDoc(userRef, { current_group_id: currentGroupId }).catch(() => {});
+
+          const groupSnap = await getDoc(doc(dbInstance, 'groups', currentGroupId)).catch(() => null);
+          if (groupSnap && groupSnap.exists()) {
+            const groupData = { id: groupSnap.id, ...groupSnap.data() } as Group;
+            const gIdx = this.groups.findIndex((g) => g.id === groupData.id);
+            if (gIdx >= 0) this.groups[gIdx] = groupData;
+            else this.groups.push(groupData);
+
+            if (groupData.original_host_id === uid || groupData.host_id === uid) {
+              userRole = 'cr';
+            }
+          }
+          updateDoc(userRef, { current_group_id: currentGroupId, role: userRole }).catch(() => {});
         }
       }
 
@@ -821,7 +819,9 @@ class AppStore {
 
   public getUserHostedGroups(): Group[] {
     if (!this.currentUser) return [];
-    return this.groups.filter((g) => g.host_id === this.currentUser!.id && g.status === 'active');
+    return this.groups.filter(
+      (g) => (g.original_host_id === this.currentUser!.id || g.host_id === this.currentUser!.id) && g.status === 'active'
+    );
   }
 
   public async switchActiveGroup(groupId: string): Promise<{ success: boolean; error?: string }> {
@@ -830,7 +830,8 @@ class AppStore {
     if (!targetGroup) return { success: false, error: 'Class not found' };
 
     this.currentUser.current_group_id = targetGroup.id;
-    this.currentUser.role = targetGroup.host_id === this.currentUser.id ? 'cr' : 'student';
+    const isTargetHost = targetGroup.original_host_id === this.currentUser.id || targetGroup.host_id === this.currentUser.id;
+    this.currentUser.role = isTargetHost ? 'cr' : 'student';
 
     const dbInstance = db;
     if (dbInstance) {
@@ -890,6 +891,7 @@ class AppStore {
       name: trimmedName,
       code,
       host_id: this.currentUser.id,
+      original_host_id: this.currentUser.id,
       host_username: this.currentUser.username,
       approval_mode: approvalMode,
       created_at: createdAt,
@@ -981,6 +983,7 @@ class AppStore {
   public async joinGroupByCode(code: string): Promise<{
     group?: Group;
     status?: 'joined' | 'pending';
+    isHostRecovery?: boolean;
     error?: string;
   }> {
     if (!this.currentUser) return { error: 'Not authenticated' };
@@ -1034,15 +1037,95 @@ class AppStore {
       return { error: 'Invalid or expired 6-character class code.' };
     }
 
-    if (isGroupExpired(group.expires_at)) {
+    if (isGroupExpired(group.expires_at) || group.status === 'expired') {
       return { error: 'This class has reached its 4-month expiration.' };
     }
 
     // If user is already an active member in this group, do not re-request
     if (this.currentUser.current_group_id === group.id) {
-      return { group, status: 'joined' };
+      return { group, status: 'joined', isHostRecovery: false };
     }
 
+    // Secure verification of original host identity
+    const isOriginalHost =
+      (group.original_host_id && group.original_host_id === this.currentUser.id) ||
+      (!group.original_host_id && group.host_id === this.currentUser.id);
+
+    if (isOriginalHost) {
+      // ORIGINAL HOST RECOVERY FLOW:
+      // Bypass approval, restore host membership, CR role, and permissions
+      const hostMember: GroupMember = {
+        group_id: group.id,
+        user_id: this.currentUser.id,
+        joined_at: new Date().toISOString(),
+        status: 'approved',
+        username: this.currentUser.username,
+        email: this.currentUser.email,
+      };
+
+      if (dbInstance) {
+        const userRef = doc(dbInstance, 'users', this.currentUser.id);
+        const groupRef = doc(dbInstance, 'groups', group.id);
+        const memberRef = doc(dbInstance, 'groupMembers', `${group.id}_${this.currentUser.id}`);
+        const reqRef = doc(dbInstance, 'joinRequests', `req-${group.id}_${this.currentUser.id}`);
+
+        try {
+          // Ensure user document exists
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              id: this.currentUser.id,
+              email: this.currentUser.email,
+              username: this.currentUser.username,
+              role: 'student',
+              current_group_id: null,
+              created_at: serverTimestamp(),
+              last_active_at: serverTimestamp(),
+            });
+          }
+
+          // Ensure group document has original_host_id & host_id set before setting user role to CR
+          // to satisfy Firestore security rule isGroupHost()
+          const needsGroupUpdate =
+            !group.original_host_id ||
+            group.host_id !== this.currentUser.id;
+
+          if (needsGroupUpdate) {
+            await updateDoc(groupRef, {
+              host_id: this.currentUser.id,
+              original_host_id: group.original_host_id || this.currentUser.id,
+              host_username: this.currentUser.username,
+            }).catch(() => {});
+          }
+
+          const batch = writeBatch(dbInstance);
+          batch.set(memberRef, { ...hostMember, expires_at: group.expires_at });
+          batch.update(userRef, { current_group_id: group.id, role: 'cr' });
+          batch.delete(reqRef);
+          await batch.commit();
+        } catch (err) {
+          console.error('Failed to restore CR host membership:', err);
+          const e = err as { message?: string };
+          return { error: e?.message || 'Failed to restore class. Please try again.' };
+        }
+      }
+
+      this.currentUser.role = 'cr';
+      this.currentUser.current_group_id = group.id;
+      group.host_id = this.currentUser.id;
+      group.original_host_id = group.original_host_id || this.currentUser.id;
+
+      const mIdx = this.members.findIndex((m) => m.group_id === group!.id && m.user_id === this.currentUser!.id);
+      if (mIdx >= 0) this.members[mIdx] = hostMember;
+      else this.members.push(hostMember);
+
+      this.persist();
+      this.notify();
+      this.attachFirestoreListeners();
+      return { group, status: 'joined', isHostRecovery: true };
+    }
+
+    // NORMAL STUDENT FLOW:
     if (group.approval_mode === 'auto') {
       const newMember: GroupMember = {
         group_id: group.id,
@@ -1071,9 +1154,11 @@ class AppStore {
               last_active_at: serverTimestamp(),
             });
           }
-          await setDoc(memberRef, { ...newMember, expires_at: group.expires_at });
-          await updateDoc(userRef, { current_group_id: group.id });
-          deleteDoc(reqRef).catch(() => {});
+          const batch = writeBatch(dbInstance);
+          batch.set(memberRef, { ...newMember, expires_at: group.expires_at });
+          batch.update(userRef, { current_group_id: group.id });
+          batch.delete(reqRef);
+          await batch.commit();
         } catch (err) {
           console.error('Failed to save group membership:', err);
           const e = err as { message?: string };
@@ -1082,19 +1167,22 @@ class AppStore {
       }
 
       this.currentUser.current_group_id = group.id;
-      this.members.push(newMember);
+      this.currentUser.role = 'student';
+      const mIdx = this.members.findIndex((m) => m.group_id === group!.id && m.user_id === this.currentUser!.id);
+      if (mIdx >= 0) this.members[mIdx] = newMember;
+      else this.members.push(newMember);
 
       this.persist();
       this.notify();
       this.attachFirestoreListeners();
-      return { group, status: 'joined' };
+      return { group, status: 'joined', isHostRecovery: false };
     } else {
       const requestId = `req-${group.id}_${this.currentUser.id}`;
 
       // If a pending request is already active in local memory, return cleanly
       const existingReq = this.requests.find((r) => r.id === requestId);
       if (existingReq && existingReq.status === 'pending') {
-        return { group, status: 'pending' };
+        return { group, status: 'pending', isHostRecovery: false };
       }
 
       const newReq: JoinRequest = {
@@ -1124,7 +1212,7 @@ class AppStore {
 
       this.persist();
       this.notify();
-      return { group, status: 'pending' };
+      return { group, status: 'pending', isHostRecovery: false };
     }
   }
 
@@ -1137,6 +1225,7 @@ class AppStore {
     const userId = this.currentUser.id;
     const groupId = currentGroup.id;
 
+    // Remove user from local active member & request lists
     this.members = this.members.filter(
       (m) => !(m.group_id === groupId && m.user_id === userId)
     );
@@ -1145,15 +1234,12 @@ class AppStore {
     );
 
     this.currentUser.current_group_id = null;
+    this.currentUser.role = 'student';
 
-    if (currentGroup.host_id === userId) {
-      currentGroup.status = 'archived';
-      this.currentUser.role = 'student';
-      const u = this.users.find((user) => user.id === userId);
-      if (u) {
-        u.role = 'student';
-        u.current_group_id = null;
-      }
+    const u = this.users.find((user) => user.id === userId);
+    if (u) {
+      u.role = 'student';
+      u.current_group_id = null;
     }
 
     if (db) {
@@ -1162,12 +1248,7 @@ class AppStore {
       const reqRef = doc(db, 'joinRequests', `req-${groupId}_${userId}`);
       deleteDoc(memberRef).catch(() => {});
       deleteDoc(reqRef).catch(() => {});
-      updateDoc(userRef, { current_group_id: null, role: this.currentUser.role }).catch(() => {});
-
-      if (currentGroup.host_id === userId) {
-        const groupRef = doc(db, 'groups', groupId);
-        updateDoc(groupRef, { status: 'archived' }).catch(() => {});
-      }
+      updateDoc(userRef, { current_group_id: null, role: 'student' }).catch(() => {});
     }
 
     this.courses = [];
@@ -1192,7 +1273,7 @@ class AppStore {
     }
 
     // Strict Authorization: Only the CR host who owns this group can delete it
-    if (currentGroup.host_id !== this.currentUser.id) {
+    if (currentGroup.host_id !== this.currentUser.id && currentGroup.original_host_id !== this.currentUser.id) {
       return { success: false, error: 'Unauthorized: Only the CR who created this class can delete it.' };
     }
 
@@ -1296,7 +1377,7 @@ class AppStore {
 
   public updateApprovalMode(groupId: string, mode: ApprovalMode) {
     const group = this.groups.find((g) => g.id === groupId);
-    if (group && this.currentUser && group.host_id === this.currentUser.id) {
+    if (group && this.currentUser && (group.host_id === this.currentUser.id || group.original_host_id === this.currentUser.id)) {
       group.approval_mode = mode;
       if (db) {
         updateDoc(doc(db, 'groups', groupId), { approval_mode: mode }).catch(() => {});
@@ -1307,7 +1388,9 @@ class AppStore {
   }
 
   public getPendingRequestsForHost(hostId: string): JoinRequest[] {
-    const hostedGroups = this.groups.filter((g) => g.host_id === hostId && g.status === 'active');
+    const hostedGroups = this.groups.filter(
+      (g) => (g.host_id === hostId || g.original_host_id === hostId) && g.status === 'active'
+    );
     const hostedGroupIds = new Set(hostedGroups.map((g) => g.id));
     return this.requests.filter((r) => hostedGroupIds.has(r.group_id) && r.status === 'pending');
   }
@@ -1470,11 +1553,16 @@ class AppStore {
   // UNREAD & VIEW TRACKING SYSTEM
   // ==========================================
 
+  private isUserGroupHost(group: Group | null | undefined, userId: string = this.currentUser?.id || ''): boolean {
+    if (!group || !userId) return false;
+    return group.host_id === userId || (Boolean(group.original_host_id) && group.original_host_id === userId);
+  }
+
   public isUpdateUnread(updateId: string): boolean {
     if (!this.currentUser) return false;
     // CR sees read state of students, does not have personal unread badges
     const currentGroup = this.getCurrentUserGroup();
-    if (currentGroup && currentGroup.host_id === this.currentUser.id) {
+    if (currentGroup && this.isUserGroupHost(currentGroup, this.currentUser.id)) {
       return false;
     }
     return !this.views.some((v) => v.update_id === updateId && v.user_id === this.currentUser!.id);
@@ -1499,7 +1587,7 @@ class AppStore {
   public getCategoryUnreadCount(courseId: string, category: AcademicCategory): number {
     if (!this.currentUser) return 0;
     const currentGroup = this.getCurrentUserGroup();
-    if (!currentGroup || currentGroup.host_id === this.currentUser.id) return 0;
+    if (!currentGroup || this.isUserGroupHost(currentGroup, this.currentUser.id)) return 0;
 
     const normCat = (category || '').trim().toLowerCase();
     const normCourseId = (courseId || '').trim();
@@ -1528,7 +1616,7 @@ class AppStore {
   public getCourseUnreadCount(courseId: string): number {
     if (!this.currentUser) return 0;
     const currentGroup = this.getCurrentUserGroup();
-    if (!currentGroup || currentGroup.host_id === this.currentUser.id) return 0;
+    if (!currentGroup || this.isUserGroupHost(currentGroup, this.currentUser.id)) return 0;
 
     const normCourseId = (courseId || '').trim();
     const courseUpdates = this.updates.filter(
@@ -1544,7 +1632,7 @@ class AppStore {
   public getTotalUnreadCount(): number {
     if (!this.currentUser) return 0;
     const currentGroup = this.getCurrentUserGroup();
-    if (!currentGroup || currentGroup.host_id === this.currentUser.id) return 0;
+    if (!currentGroup || this.isUserGroupHost(currentGroup, this.currentUser.id)) return 0;
 
     const pendingUpdates = this.updates.filter(
       (u) => u.group_id === currentGroup.id && u.status === 'pending'
@@ -1624,7 +1712,7 @@ class AppStore {
     if (!currentGroup) return { viewCount: 0, totalCount: 0, viewed: [], notViewed: [] };
 
     const studentMembers = this.members.filter(
-      (m) => m.group_id === currentGroup.id && m.status === 'approved' && m.user_id !== currentGroup.host_id
+      (m) => m.group_id === currentGroup.id && m.status === 'approved' && !this.isUserGroupHost(currentGroup, m.user_id)
     );
 
     const viewsSource = remoteViews && remoteViews.length > 0 ? remoteViews : this.views;
@@ -1676,13 +1764,13 @@ class AppStore {
     }
 
     const studentMembers = this.members.filter(
-      (m) => m.group_id === currentGroup.id && m.status === 'approved' && m.user_id !== currentGroup.host_id
+      (m) => m.group_id === currentGroup.id && m.status === 'approved' && !this.isUserGroupHost(currentGroup, m.user_id)
     );
 
     return list
       .map((u) => {
         const views = this.views.filter((v) => v.update_id === u.id);
-        const viewedStudentViews = views.filter((v) => v.user_id !== currentGroup.host_id);
+        const viewedStudentViews = views.filter((v) => !this.isUserGroupHost(currentGroup, v.user_id));
         return {
           ...u,
           unread: this.isUpdateUnread(u.id),

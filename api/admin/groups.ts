@@ -32,8 +32,9 @@ export default async function handler(req: any, res: any) {
 
         let hostEmail = '';
         let hostUsername = groupData.host_username || 'Host';
-        if (groupData.host_id) {
-          const hostDoc = await db.doc(`users/${groupData.host_id}`).get();
+        const hostUid = groupData.host_id || groupData.original_host_id;
+        if (hostUid) {
+          const hostDoc = await db.doc(`users/${hostUid}`).get();
           if (hostDoc.exists) {
             const hData = hostDoc.data() as any;
             hostEmail = hData?.email || '';
@@ -134,8 +135,9 @@ export default async function handler(req: any, res: any) {
       }
 
       let hostUser: any = null;
-      if (group.host_id) {
-        const hostRes = await fetch(`${firestoreBase}/users/${group.host_id}`, { headers });
+      const hostUid = group.host_id || group.original_host_id;
+      if (hostUid) {
+        const hostRes = await fetch(`${firestoreBase}/users/${hostUid}`, { headers });
         if (hostRes.ok) {
           hostUser = parseFirestoreDoc(await hostRes.json());
         }
@@ -176,7 +178,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const enhancedGroups = groupsList.map((g) => {
-      const host = userMap.get(g.host_id);
+      const host = userMap.get(g.host_id) || (g.original_host_id ? userMap.get(g.original_host_id) : undefined);
       return {
         ...g,
         host_email: host?.email || '',
