@@ -1,7 +1,8 @@
-import { BookOpen, ChevronRight, FolderPlus, Plus } from 'lucide-react';
+import { FolderPlus, Plus } from 'lucide-react';
 import type { Course, Group } from '../../types';
 import { store } from '../../lib/store';
 import { getExpirationCountdown } from '../../lib/auth';
+import './CourseRow.css';
 
 interface HomeScreenProps {
   group: Group;
@@ -180,95 +181,43 @@ export function HomeScreen({
           )}
         </div>
       ) : (
-        <div
-          style={{
-            background: 'var(--c-card-bg)',
-            borderRadius: 16,
-            overflow: 'hidden',
-            border: '1px solid var(--c-hairline)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-          }}
-        >
-          {courses.map((course, idx) => {
+        <div className="cm-course-list">
+          {courses.map((course) => {
             const updateCount = store.getCourseUpdateCount(course.id);
-            const isLast = idx === courses.length - 1;
 
             return (
-              <button
+              <div
                 key={course.id}
+                className="cm-course-row"
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectCourse(course)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '14px 16px',
-                  background: 'var(--c-card-bg)',
-                  borderBottom: isLast ? 'none' : '1px solid var(--c-hairline)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'background 160ms ease',
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectCourse(course);
+                  }
                 }}
               >
-                {/* Left Part: Icon + Course Name */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 12,
-                      background: 'var(--c-accent-bg)',
-                      color: 'var(--c-accent)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <BookOpen size={20} strokeWidth={2} />
+                <div className="cm-course-content">
+                  <div className="cm-course-header">
+                    <p className="cm-course-title">
+                      {course.name}
+                    </p>
+
+                    <div className="cm-course-meta">
+                      {updateCount > 0 && (
+                        <span className="cm-course-badge">
+                          {updateCount}
+                        </span>
+                      )}
+                      <span className="cm-course-arrow">
+                        ›
+                      </span>
+                    </div>
                   </div>
-
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-head)',
-                      fontSize: 17,
-                      fontWeight: 600,
-                      color: 'var(--c-text)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '-0.015em',
-                    }}
-                  >
-                    {course.name}
-                  </span>
                 </div>
-
-                {/* Right Part: Count Badge + Chevron Right */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 12 }}>
-                  {updateCount > 0 && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minWidth: 22,
-                        height: 22,
-                        padding: '0 6px',
-                        borderRadius: 999,
-                        background: 'var(--c-accent)',
-                        color: '#FFFFFF',
-                        fontFamily: 'var(--font-body)',
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {updateCount}
-                    </span>
-                  )}
-                  <ChevronRight size={18} color="var(--c-text-faint)" strokeWidth={2} />
-                </div>
-              </button>
+              </div>
             );
           })}
         </div>
