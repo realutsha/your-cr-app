@@ -17,70 +17,72 @@ export function HomeScreen({
   const totalUnreadCount = store.getTotalUnreadCount();
 
   return (
-    <div style={{ paddingTop: 4 }}>
+    <div
+      style={{
+        minHeight: 'calc(80dvh - 60px)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center',
+        padding: '24px 0',
+        boxSizing: 'border-box',
+      }}
+    >
+      {countdown.isFinalWeek && (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            background: 'rgba(255, 59, 48, 0.1)',
+            border: '1px solid rgba(255, 59, 48, 0.25)',
+            borderRadius: 20,
+            padding: '4px 12px',
+            color: 'var(--c-danger)',
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: 'var(--font-mono)',
+            marginBottom: 16,
+          }}
+        >
+          <span>⏳ {countdown.label}</span>
+        </div>
+      )}
+
       {/* 1. ClassMate Main Brand Header */}
-      <header
+      <h1
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
+          fontFamily: 'var(--font-head)',
+          fontSize: 38,
+          fontWeight: 700,
+          letterSpacing: '-0.03em',
+          color: 'var(--c-text)',
+          margin: '0 0 10px 0',
+          lineHeight: 1.15,
         }}
       >
-        <h1
-          style={{
-            fontFamily: 'var(--font-head)',
-            fontSize: 34,
-            fontWeight: 700,
-            letterSpacing: '-0.025em',
-            color: 'var(--c-text)',
-            margin: 0,
-            lineHeight: 1.15,
-          }}
-        >
-          ClassMate
-        </h1>
-
-        {countdown.isFinalWeek && (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              background: 'rgba(255, 59, 48, 0.1)',
-              border: '1px solid rgba(255, 59, 48, 0.25)',
-              borderRadius: 20,
-              padding: '4px 10px',
-              color: 'var(--c-danger)',
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            <span>⏳ {countdown.label}</span>
-          </div>
-        )}
-      </header>
+        ClassMate
+      </h1>
 
       {/* 2. Current Section / Class Name */}
-      <div style={{ marginBottom: 28, paddingLeft: 2 }}>
-        <p
-          style={{
-            fontFamily: 'var(--font-head)',
-            fontSize: 20,
-            fontWeight: 600,
-            color: 'var(--c-text-soft)',
-            letterSpacing: '-0.015em',
-            margin: 0,
-            lineHeight: 1.35,
-          }}
-        >
-          {group.name}
-        </p>
-      </div>
+      <p
+        style={{
+          fontFamily: 'var(--font-head)',
+          fontSize: 19,
+          fontWeight: 600,
+          color: 'var(--c-text-soft)',
+          letterSpacing: '-0.015em',
+          margin: '0 0 32px 0',
+          lineHeight: 1.35,
+          maxWidth: 360,
+        }}
+      >
+        {group.name}
+      </p>
 
       {/* 3. Main Action: Show Courses Button */}
-      <div>
+      <div style={{ width: '100%', maxWidth: 320 }}>
         <button
           type="button"
           onClick={onShowCourses}
@@ -90,7 +92,7 @@ export function HomeScreen({
             alignItems: 'center',
             justifyContent: 'center',
             gap: 10,
-            padding: '16px 22px',
+            padding: '16px 24px',
             background: 'var(--c-accent, #007aff)',
             color: '#FFFFFF',
             fontFamily: 'var(--font-head, -apple-system, sans-serif)',
