@@ -220,6 +220,71 @@ export function App() {
     }
   };
 
+  // Open update by ID (used by push notification deep linking and service worker clicks)
+  const handleOpenUpdateById = useCallback((updateId: string) => {
+    const allUpdates = store.getAcademicUpdates();
+    const update = allUpdates.find((u) => u.id === updateId);
+    if (update) {
+      setActiveCourseId(update.course_id);
+      setActiveCategory(update.category);
+      setSelectedUpdate(update);
+      const u = store.getCurrentUser();
+      const currentGrp = store.getCurrentUserGroup();
+      const isCRUser = u
+        ? u.role === 'cr' ||
+          u.id === currentGrp?.host_id ||
+          (Boolean(currentGrp?.original_host_id) && u.id === currentGrp?.original_host_id)
+        : false;
+      if (!isCRUser) {
+        store.recordView(update.id);
+      }
+      setScreen('home');
+    }
+  }, []);
+
+  // Handle service worker postMessages when user taps notification while PWA is open
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'NAVIGATE_UPDATE' && event.data.updateId) {
+        handleOpenUpdateById(event.data.updateId);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+  }, [handleOpenUpdateById]);
+
+  // Check URL query parameters for deep linking on startup (e.g. ?update=updateId)
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || deepLinkHandledRef.current) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUpdateId = urlParams.get('update');
+    if (targetUpdateId) {
+      const allUpdates = store.getAcademicUpdates();
+      if (allUpdates.length > 0) {
+        const found = allUpdates.find((u) => u.id === targetUpdateId);
+        if (found) {
+          deepLinkHandledRef.current = true;
+          handleOpenUpdateById(targetUpdateId);
+          const cleanUrl = window.location.pathname + window.location.hash;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      }
+    }
+  }, [handleOpenUpdateById]);
+
+  // Automatically sync FCM token if permission was already granted previously
+  useEffect(() => {
+    if (currentUser && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      requestNotificationPermission().then((res) => {
+        if (res.token) {
+          setHasFcmToken(true);
+        }
+      }).catch(() => {});
+    }
+  }, [currentUser]);
+
   const handleEnableNotifications = async () => {
     const res = await requestNotificationPermission();
     if (typeof window !== 'undefined' && 'Notification' in window) {

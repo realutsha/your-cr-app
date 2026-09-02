@@ -1900,6 +1900,7 @@ class AppStore {
         // Dispatch push notification to approved class members in background
         dispatchUpdateNotification({
           updateId: newUpdate.id,
+          courseId: newUpdate.course_id,
           groupId: currentGroup.id,
           courseName: courseName,
           category: newUpdate.category,
@@ -2112,16 +2113,24 @@ class AppStore {
       localStorage.setItem(STORAGE_KEYS.FCM_TOKENS, JSON.stringify(tokensMap));
 
       if (db) {
-        const deviceDocId = `${this.currentUser.id}_${token.substring(0, 12)}`;
+        // Deterministic document ID per device/token to support multiple devices per user
+        const tokenSuffix = token.slice(-14).replace(/[^a-zA-Z0-9]/g, '');
+        const deviceDocId = `${this.currentUser.id}_${tokenSuffix || 'web'}`;
         const deviceRef = doc(db, 'devices', deviceDocId);
-        setDoc(deviceRef, {
-          user_id: this.currentUser.id,
-          group_id: this.currentUser.current_group_id || null,
-          fcm_token: token,
-          device_type: 'web',
-          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-          updated_at: serverTimestamp(),
-        }).catch(() => {});
+        setDoc(
+          deviceRef,
+          {
+            user_id: this.currentUser.id,
+            group_id: this.currentUser.current_group_id || null,
+            fcm_token: token,
+            device_type: 'web',
+            user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+            created_at: serverTimestamp(),
+            updated_at: serverTimestamp(),
+            last_active_at: serverTimestamp(),
+          },
+          { merge: true }
+        ).catch(() => {});
       }
     } catch {}
   }

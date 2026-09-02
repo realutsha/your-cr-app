@@ -123,51 +123,76 @@ try {
 
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
-    const notificationTitle = payload.notification?.title || payload.data?.title || 'Class Mate';
+    const notificationTitle = payload.notification?.title || payload.data?.title || 'ClassMate';
+    const notificationBody = payload.notification?.body || payload.data?.body || 'New academic update posted';
+    const updateId = payload.data?.update_id || payload.data?.updateId;
+
     const notificationOptions = {
-      body: payload.notification?.body || payload.data?.body || 'New academic update posted',
+      body: notificationBody,
       icon: '/icons/icon-192.png',
       badge: '/favicon.svg',
-      tag: payload.data?.update_id ? `update-${payload.data.update_id}` : 'classmate-notice',
+      tag: updateId ? `update-${updateId}` : 'classmate-notice',
       data: payload.data || {},
+      requireInteraction: true,
+      vibrate: [200, 100, 200],
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);
   });
+} else {
+  // Fallback listener for raw Web Push events only if firebase.messaging() is not supported
+  self.addEventListener('push', (event) => {
+    if (!event.data) return;
+    try {
+      const payload = event.data.json();
+      const title = payload.notification?.title || payload.data?.title || 'ClassMate';
+      const body = payload.notification?.body || payload.data?.body || 'New academic update posted';
+      const updateId = payload.data?.update_id || payload.data?.updateId;
+
+      const options = {
+        body,
+        icon: '/icons/icon-192.png',
+        badge: '/favicon.svg',
+        tag: updateId ? `update-${updateId}` : 'classmate-notice',
+        data: payload.data || {},
+        requireInteraction: true,
+        vibrate: [200, 100, 200],
+      };
+      event.waitUntil(self.registration.showNotification(title, options));
+    } catch {}
+  });
 }
 
-// Fallback listener for raw Web Push events
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  try {
-    const payload = event.data.json();
-    const title = payload.notification?.title || payload.data?.title || 'Class Mate';
-    const options = {
-      body: payload.notification?.body || payload.data?.body || 'New academic update posted',
-      icon: '/icons/icon-192.png',
-      badge: '/favicon.svg',
-      tag: payload.data?.update_id ? `update-${payload.data.update_id}` : 'classmate-notice',
-      data: payload.data || {},
-    };
-    event.waitUntil(self.registration.showNotification(title, options));
-  } catch {}
-});
-
-// Handle notification click to focus or open window
+// Handle notification click to focus or open window and navigate to exact update
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const updateId = event.notification.data?.update_id || event.notification.data?.announcement_id;
-  const urlToOpen = updateId ? `/?update=${updateId}` : '/';
+  const data = event.notification.data || {};
+  const updateId = data.update_id || data.updateId || data.announcement_id;
+  const courseId = data.course_id || data.courseId;
+  const category = data.category;
+  const groupId = data.group_id || data.groupId;
+
+  const targetPath = updateId ? `/?update=${encodeURIComponent(updateId)}` : '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // 1. If an active client window is already open, focus it and post a message to open the update
       for (const client of windowClients) {
-        if (client.url && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: 'NAVIGATE_UPDATE',
+            updateId,
+            courseId,
+            category,
+            groupId,
+          });
+          return;
         }
       }
+      // 2. If no window is open, open a new window with query params
       if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen);
+        return self.clients.openWindow(targetPath);
       }
     })
   );

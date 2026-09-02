@@ -85,6 +85,7 @@ export function playSubtleChime() {
  */
 export async function dispatchUpdateNotification(data: {
   updateId: string;
+  courseId?: string;
   groupId: string;
   courseName: string;
   category: string;
@@ -120,16 +121,23 @@ export async function dispatchUpdateNotification(data: {
 }
 
 /**
- * Initializes foreground push listener that triggers chime and native notification
+ * Initializes foreground push listener that triggers chime and in-app/native notification
  */
-export function initForegroundNotificationListener(onReceive?: (title: string, body: string) => void): () => void {
+export function initForegroundNotificationListener(
+  onReceive?: (title: string, body: string, data?: Record<string, any>) => void
+): () => void {
   return onForegroundFcmMessage((payload) => {
     playSubtleChime();
-    const title = payload.title || 'DIU Class Notice';
+    const title = payload.title || 'ClassMate';
     const body = payload.body || 'New academic update posted';
-    sendLocalNotification(title, body, payload.data);
+
+    // If app is hidden/minimized, trigger local notification; otherwise trigger in-app toast
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+      sendLocalNotification(title, body, payload.data);
+    }
+
     if (onReceive) {
-      onReceive(title, body);
+      onReceive(title, body, payload.data);
     }
   });
 }

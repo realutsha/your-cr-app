@@ -164,17 +164,14 @@ export async function requestFcmToken(): Promise<{
       return { error: 'Firebase Messaging is not available.' };
     }
 
-    // Register service worker if supported
+    // Register and ensure service worker is active
     let swRegistration: ServiceWorkerRegistration | undefined = undefined;
     if ('serviceWorker' in navigator) {
       try {
-        const swUrl = firebaseConfig.apiKey
-          ? `/firebase-messaging-sw.js?apiKey=${encodeURIComponent(firebaseConfig.apiKey)}&projectId=${encodeURIComponent(firebaseConfig.projectId)}&authDomain=${encodeURIComponent(firebaseConfig.authDomain)}&messagingSenderId=${encodeURIComponent(firebaseConfig.messagingSenderId)}&appId=${encodeURIComponent(firebaseConfig.appId)}`
-          : '/firebase-messaging-sw.js';
-        swRegistration = await navigator.serviceWorker.register(swUrl);
+        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
         await navigator.serviceWorker.ready;
       } catch (e) {
-        console.warn('Service worker registration failed:', e);
+        console.warn('[FCM] Service worker registration notice:', e);
       }
     }
 
