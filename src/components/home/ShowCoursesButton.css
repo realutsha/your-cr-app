@@ -1,0 +1,83 @@
+.cm-show-courses-btn {
+  outline: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--c-accent, #40b3a2);
+  min-width: 220px;
+  max-width: 320px;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px var(--c-accent-glow, rgba(0, 0, 0, 0.1));
+  box-sizing: border-box;
+  padding: 16px 20px;
+  color: #ffffff;
+  font-family: var(--font-head, -apple-system, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.cm-show-courses-btn:hover {
+  opacity: 0.95;
+}
+
+.cm-show-courses-btn:active {
+  transform: scale(0.98);
+}
+
+.cm-show-courses-btn .cm-show-courses-anim {
+  border-radius: 100%;
+  animation: cm-ripple 0.6s linear infinite;
+  display: inline-block;
+  width: 0;
+  height: 0;
+  flex-shrink: 0;
+}
+
+.cm-show-courses-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
+
+.cm-show-courses-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--c-accent, #40b3a2);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0;
+}
+
+@keyframes cm-ripple {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0.1),
+      0 0 0 20px rgba(255, 255, 255, 0.1),
+      0 0 0 40px rgba(255, 255, 255, 0.1),
+      0 0 0 60px rgba(255, 255, 255, 0.1);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 20px rgba(255, 255, 255, 0.1),
+      0 0 0 40px rgba(255, 255, 255, 0.1),
+      0 0 0 60px rgba(255, 255, 255, 0.1),
+      0 0 0 80px rgba(255, 255, 255, 0);
+  }
+}

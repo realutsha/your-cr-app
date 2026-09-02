@@ -1,7 +1,7 @@
-import { ChevronRight } from 'lucide-react';
 import type { Group } from '../../types';
 import { getExpirationCountdown } from '../../lib/auth';
 import { store } from '../../lib/store';
+import './ShowCoursesButton.css';
 
 interface HomeScreenProps {
   group: Group;
@@ -81,53 +81,23 @@ export function HomeScreen({
         {group.name}
       </p>
 
-      {/* 3. Main Action: Show Courses Button */}
-      <div style={{ width: '100%', maxWidth: 320 }}>
+      {/* 3. Main Action: Show Courses Button with Uiverse Ripple Animation */}
+      <div style={{ width: '100%', maxWidth: 320, display: 'flex', justifyContent: 'center' }}>
         <button
           type="button"
           onClick={onShowCourses}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            padding: '16px 24px',
-            background: 'var(--c-accent, #007aff)',
-            color: '#FFFFFF',
-            fontFamily: 'var(--font-head, -apple-system, sans-serif)',
-            fontSize: 17,
-            fontWeight: 600,
-            borderRadius: 16,
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0 4px 16px var(--c-accent-glow, rgba(0, 122, 255, 0.3))',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-            boxSizing: 'border-box',
-          }}
+          className="cm-show-courses-btn"
         >
-          <span>Show Courses</span>
-          {totalUnreadCount > 0 && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 22,
-                height: 22,
-                padding: '0 6px',
-                borderRadius: 999,
-                background: '#FFFFFF',
-                color: 'var(--c-accent, #007aff)',
-                fontSize: 12,
-                fontWeight: 700,
-                fontFamily: 'var(--font-mono, monospace)',
-              }}
-            >
-              {totalUnreadCount}
-            </span>
-          )}
-          <ChevronRight size={19} strokeWidth={2.5} />
+          <i className="cm-show-courses-anim" />
+          <span className="cm-show-courses-label">
+            <span>Show Courses</span>
+            {totalUnreadCount > 0 && (
+              <span className="cm-show-courses-badge">
+                {totalUnreadCount}
+              </span>
+            )}
+          </span>
+          <i className="cm-show-courses-anim" />
         </button>
       </div>
     </div>
