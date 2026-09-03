@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 interface IntroPopupProps {
-  onDismiss: () => void;
+  onDismiss: () => void | Promise<void>;
 }
 
 export function IntroPopup({ onDismiss }: IntroPopupProps) {

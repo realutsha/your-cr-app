@@ -68,9 +68,13 @@ export function App() {
   const [hasFcmToken, setHasFcmToken] = useState<boolean>(Boolean(store.getUserFcmToken()));
   const [isShutdown, setIsShutdown] = useState<boolean>(store.isAppShutdown());
   const [shutdownMessage, setShutdownMessage] = useState<string>(store.getShutdownMessage());
+  const [showIntro, setShowIntro] = useState<boolean>(() => {
+    const u = store.getCurrentUser();
+    return Boolean(u && u.has_seen_intro === false);
+  });
   const [showFreeAccessOffer, setShowFreeAccessOffer] = useState<boolean>(() => {
     const u = store.getCurrentUser();
-    return Boolean(u && u.has_seen_free_access_offer !== true);
+    return Boolean(u && u.has_seen_intro === true && u.has_seen_free_access_offer === false);
   });
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -107,10 +111,6 @@ export function App() {
   const [confirm, setConfirm] = useState<'leave' | 'logout' | 'deleteGroup' | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [introDismissed, setIntroDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return sessionStorage.getItem('classmate_intro_seen') === 'true';
-  });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showToast = useCallback((msg: string) => {
@@ -169,13 +169,8 @@ export function App() {
       setHasFcmToken(Boolean(store.getUserFcmToken()));
       setIsShutdown(store.isAppShutdown());
       setShutdownMessage(store.getShutdownMessage());
-      if (u && u.has_seen_free_access_offer === true) {
-        setShowFreeAccessOffer(false);
-      } else if (u && u.has_seen_free_access_offer !== true) {
-        setShowFreeAccessOffer(true);
-      } else {
-        setShowFreeAccessOffer(false);
-      }
+      setShowIntro(Boolean(u && u.has_seen_intro === false));
+      setShowFreeAccessOffer(Boolean(u && u.has_seen_intro === true && u.has_seen_free_access_offer === false));
     });
     const unsubTheme = subscribeTheme((t) => setThemePref(t));
     const unsubFCM = initForegroundNotificationListener((title, body) => {
@@ -452,10 +447,6 @@ export function App() {
     setActiveCourseId(null);
     setActiveCategory(null);
     setConfirm(null);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('classmate_intro_seen');
-    }
-    setIntroDismissed(false);
     showToast('Signed out');
   };
 
@@ -513,22 +504,18 @@ export function App() {
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', transition: 'background 220ms ease' }}>
       {toast && <Toast message={toast} />}
 
-      {showFreeAccessOffer && (
-        <FreeAccessOfferModal
-          onClaim={async () => {
-            await store.markFreeAccessOfferClaimed();
-            setShowFreeAccessOffer(false);
+      {showIntro && (
+        <IntroPopup
+          onDismiss={async () => {
+            await store.markIntroSeen();
           }}
         />
       )}
 
-      {!introDismissed && !showFreeAccessOffer && (
-        <IntroPopup
-          onDismiss={() => {
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem('classmate_intro_seen', 'true');
-            }
-            setIntroDismissed(true);
+      {showFreeAccessOffer && (
+        <FreeAccessOfferModal
+          onClaim={async () => {
+            await store.markFreeAccessOfferClaimed();
           }}
         />
       )}

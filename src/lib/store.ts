@@ -199,15 +199,31 @@ class AppStore {
         if (isDiuEmail(email) && isVerified) {
           const username = extractUsernameFromEmail(email);
 
+          let cachedUser: User | null = null;
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.USER);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && parsed.id === firebaseUser.uid) {
+                cachedUser = parsed;
+              }
+            }
+          } catch {}
+
           // Optimistically restore session immediately so UI shell renders in 0ms
           if (!this.currentUser || this.currentUser.id !== firebaseUser.uid) {
             this.currentUser = {
               id: firebaseUser.uid,
               email,
               username,
-              role: this.currentUser?.role || 'student',
-              current_group_id: this.currentUser?.current_group_id || null,
-              created_at: new Date().toISOString(),
+              role: cachedUser?.role || this.currentUser?.role || 'student',
+              current_group_id:
+                cachedUser?.current_group_id !== undefined
+                  ? cachedUser.current_group_id
+                  : (this.currentUser?.current_group_id || null),
+              has_seen_intro: cachedUser?.has_seen_intro,
+              has_seen_free_access_offer: cachedUser?.has_seen_free_access_offer,
+              created_at: cachedUser?.created_at || new Date().toISOString(),
             };
           }
           this.authReady = true;
@@ -326,20 +342,29 @@ class AppStore {
 
       let currentGroupId: string | null = null;
       let userRole: 'student' | 'cr' = 'student';
+      let hasSeenIntro = false;
       let hasSeenFreeAccessOffer = false;
 
       if (!userSnap.exists()) {
         await setDoc(userRef, {
           ...defaultUser,
+          has_seen_intro: false,
           has_seen_free_access_offer: false,
           created_at: serverTimestamp(),
           last_active_at: serverTimestamp(),
         });
-        this.currentUser = { ...defaultUser, has_seen_free_access_offer: false };
+        this.currentUser = { ...defaultUser, has_seen_intro: false, has_seen_free_access_offer: false };
       } else {
         const data = userSnap.data() as Partial<User>;
         currentGroupId = data.current_group_id || null;
         userRole = data.role || 'student';
+        if (data.has_seen_intro !== undefined) {
+          hasSeenIntro = Boolean(data.has_seen_intro);
+        } else if (data.has_seen_free_access_offer !== undefined) {
+          hasSeenIntro = Boolean(data.has_seen_free_access_offer);
+        } else {
+          hasSeenIntro = true;
+        }
         hasSeenFreeAccessOffer = Boolean(data.has_seen_free_access_offer);
       }
 
@@ -374,6 +399,7 @@ class AppStore {
         username,
         role: userRole,
         current_group_id: currentGroupId,
+        has_seen_intro: hasSeenIntro,
         has_seen_free_access_offer: hasSeenFreeAccessOffer,
         created_at:
           userSnap.exists() && typeof userSnap.data()?.created_at === 'string'
@@ -435,6 +461,9 @@ class AppStore {
               const newGroupId = data.current_group_id ?? null;
               this.currentUser.role = data.role || this.currentUser.role;
               this.currentUser.current_group_id = newGroupId;
+              if (data.has_seen_intro !== undefined) {
+                this.currentUser.has_seen_intro = Boolean(data.has_seen_intro);
+              }
               if (data.has_seen_free_access_offer !== undefined) {
                 this.currentUser.has_seen_free_access_offer = Boolean(data.has_seen_free_access_offer);
               }
@@ -794,6 +823,24 @@ class AppStore {
       await firebaseSignOut(authInstance).catch(() => {});
     }
     this.notify();
+  }
+
+  public async markIntroSeen(): Promise<void> {
+    if (!this.currentUser) return;
+    this.currentUser.has_seen_intro = true;
+    this.persist();
+    this.notify();
+
+    if (db && this.currentUser.id) {
+      try {
+        const userRef = doc(db, 'users', this.currentUser.id);
+        await updateDoc(userRef, {
+          has_seen_intro: true,
+        });
+      } catch (err) {
+        console.warn('Could not persist intro seen status:', err);
+      }
+    }
   }
 
   public async markFreeAccessOfferClaimed(): Promise<void> {
