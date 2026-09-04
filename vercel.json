@@ -9,6 +9,10 @@
       "destination": "/install/index.html"
     },
     {
+      "source": "/install/",
+      "destination": "/install/index.html"
+    },
+    {
       "source": "/install/(.*)",
       "destination": "/install/$1"
     },
