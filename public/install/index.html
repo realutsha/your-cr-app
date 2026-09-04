@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ClassMate — Your Academic Life, Organized</title>
+  <meta name="description" content="ClassMate helps students manage classes, quizzes, academic work and deadlines in one place.">
+  <meta name="theme-color" content="#050508">
+
+  <!-- PWA & Mobile Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ClassMate">
+  <meta name="application-name" content="ClassMate">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="ClassMate — Your Academic Life, Organized">
+  <meta property="og:description" content="ClassMate helps students manage classes, quizzes, academic work and deadlines in one place.">
+  <meta property="og:image" content="assets/logo.png">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ClassMate — Your Academic Life, Organized">
+  <meta name="twitter:description" content="ClassMate helps students manage classes, quizzes, academic work and deadlines in one place.">
+
+  <!-- Favicon & Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+
+  <!-- Immediate Standalone PWA Redirect: if launched as installed app on /install, redirect to main app / -->
+  <script>
+    (function() {
+      try {
+        var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                           window.matchMedia('(display-mode: fullscreen)').matches ||
+                           window.matchMedia('(display-mode: minimal-ui)').matches ||
+                           window.navigator.standalone === true;
+        if (isStandalone && window.location.pathname.startsWith('/install')) {
+          window.location.replace('/');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Early PWA Prompt Capture: capture beforeinstallprompt before ANY deferred scripts -->
+  <script>
+    window.__CLASSMATE_DEBUG__ = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('debug=1');
+    window.__CLASSMATE_INSTALL__ = {
+      deferredPrompt: null,
+      listeners: [],
+      installedListeners: []
+    };
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      window.__CLASSMATE_INSTALL__.deferredPrompt = e;
+      if (window.__CLASSMATE_DEBUG__) console.log('[ClassMate PWA] beforeinstallprompt captured early in <head>');
+      window.__CLASSMATE_INSTALL__.listeners.forEach(function(fn) {
+        try { fn(e); } catch (err) { console.error(err); }
+      });
+    });
+    window.addEventListener('appinstalled', function(e) {
+      if (window.__CLASSMATE_DEBUG__) console.log('[ClassMate PWA] appinstalled captured in <head>');
+      window.__CLASSMATE_INSTALL__.installedListeners.forEach(function(fn) {
+        try { fn(e); } catch (err) { console.error(err); }
+      });
+    });
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================ -->
+  <!-- NAVIGATION                                   -->
+  <!-- ============================================ -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="nav__inner">
+      <a href="#" class="nav__brand" aria-label="ClassMate Home">
+        <img src="assets/logo-small.png" alt="" class="nav__logo" width="32" height="32">
+        <span class="nav__name">ClassMate</span>
+      </a>
+      <button class="btn btn--nav btn--install" aria-label="Install ClassMate" data-install-btn>
+        <span class="btn__spinner" aria-hidden="true"></span>
+        <span class="btn__text">Install</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================ -->
+  <!-- HERO                                         -->
+  <!-- ============================================ -->
+  <section class="hero" id="hero" aria-label="ClassMate introduction">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <div class="hero__content">
+      <div class="hero__badge anim-fade-in">
+        <img src="assets/logo.png" alt="ClassMate logo" class="hero__logo" width="88" height="88">
+      </div>
+      <h1 class="hero__title anim-fade-in anim-delay-1">ClassMate</h1>
+      <p class="hero__tagline anim-fade-in anim-delay-2">Your academic life, organized.</p>
+      <p class="hero__sub anim-fade-in anim-delay-3">Classes, quizzes, work and deadlines — all in one place.</p>
+      <div class="hero__actions anim-fade-in anim-delay-4">
+        <button class="btn btn--primary btn--install" data-install-btn aria-label="Install ClassMate">
+          <svg class="btn__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="btn__spinner" aria-hidden="true"></span>
+          <span class="btn__text">Install ClassMate</span>
+        </button>
+        <a href="https://www.facebook.com/Classmate.studentapp/" target="_blank" rel="noopener noreferrer" class="btn btn--secondary" aria-label="Follow ClassMate on Facebook">
+          <svg class="btn__icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          Follow on Facebook
+        </a>
+      </div>
+      <p class="hero__note anim-fade-in anim-delay-5">Install once. Keep ClassMate one tap away.</p>
+    </div>
+
+    <!-- Hero App Showcase -->
+    <div class="hero__showcase anim-fade-in anim-delay-5" aria-hidden="true">
+      <div class="showcase">
+        <div class="showcase__glow"></div>
+        <div class="showcase__window">
+          <div class="showcase__titlebar">
+            <div class="showcase__dots">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="showcase__titlebar-text">ClassMate</div>
+          </div>
+          <div class="showcase__body">
+            <div class="showcase__sidebar">
+              <div class="showcase__sidebar-item showcase__sidebar-item--active">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <span>Classes</span>
+              </div>
+              <div class="showcase__sidebar-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span>Quizzes</span>
+              </div>
+              <div class="showcase__sidebar-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>Work</span>
+              </div>
+              <div class="showcase__sidebar-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>Deadlines</span>
+              </div>
+            </div>
+            <div class="showcase__main">
+              <div class="showcase__header-row">
+                <div class="showcase__heading-block"></div>
+                <div class="showcase__heading-pill"></div>
+              </div>
+              <div class="showcase__cards">
+                <div class="showcase__card">
+                  <div class="showcase__card-accent showcase__card-accent--1"></div>
+                  <div class="showcase__card-line showcase__card-line--w70"></div>
+                  <div class="showcase__card-line showcase__card-line--w50"></div>
+                </div>
+                <div class="showcase__card">
+                  <div class="showcase__card-accent showcase__card-accent--2"></div>
+                  <div class="showcase__card-line showcase__card-line--w60"></div>
+                  <div class="showcase__card-line showcase__card-line--w80"></div>
+                </div>
+                <div class="showcase__card">
+                  <div class="showcase__card-accent showcase__card-accent--3"></div>
+                  <div class="showcase__card-line showcase__card-line--w55"></div>
+                  <div class="showcase__card-line showcase__card-line--w45"></div>
+                </div>
+                <div class="showcase__card">
+                  <div class="showcase__card-accent showcase__card-accent--4"></div>
+                  <div class="showcase__card-line showcase__card-line--w65"></div>
+                  <div class="showcase__card-line showcase__card-line--w40"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating elements -->
+        <div class="showcase__float showcase__float--1">
+          <div class="showcase__float-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="showcase__float-lines">
+            <div class="showcase__float-line"></div>
+            <div class="showcase__float-line showcase__float-line--short"></div>
+          </div>
+        </div>
+        <div class="showcase__float showcase__float--2">
+          <div class="showcase__float-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg>
+          </div>
+          <div class="showcase__float-lines">
+            <div class="showcase__float-line"></div>
+            <div class="showcase__float-line showcase__float-line--short"></div>
+          </div>
+        </div>
+        <div class="showcase__float showcase__float--3">
+          <div class="showcase__float-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div class="showcase__float-lines">
+            <div class="showcase__float-line"></div>
+            <div class="showcase__float-line showcase__float-line--short"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll Indicator -->
+    <button class="scroll-indicator anim-fade-in anim-delay-6" id="scrollIndicator" aria-label="Scroll to explore">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- PROBLEM SECTION                              -->
+  <!-- ============================================ -->
+  <section class="section section--problem" id="problem" aria-label="The problem">
+    <div class="container">
+      <div class="section__content section__content--center">
+        <h2 class="section__title section__title--large anim-reveal">Never miss what matters.</h2>
+        <p class="section__text anim-reveal">Classes, quizzes, assignments and deadlines can quickly become difficult to keep track of.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- ONE PLACE SECTION                            -->
+  <!-- ============================================ -->
+  <section class="section section--features" id="features" aria-label="ClassMate features">
+    <div class="container">
+      <h2 class="section__title section__title--center anim-reveal">Everything for your academic life.</h2>
+      <div class="features-grid">
+        <article class="feature-card anim-reveal" aria-label="Classes feature">
+          <div class="feature-card__icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </div>
+          <h3 class="feature-card__title">Classes</h3>
+          <p class="feature-card__text">Keep your classes organized and easy to manage.</p>
+        </article>
+        <article class="feature-card anim-reveal" aria-label="Quizzes feature">
+          <div class="feature-card__icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <h3 class="feature-card__title">Quizzes</h3>
+          <p class="feature-card__text">Stay on top of your quizzes and academic activities.</p>
+        </article>
+        <article class="feature-card anim-reveal" aria-label="Work feature">
+          <div class="feature-card__icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <h3 class="feature-card__title">Work</h3>
+          <p class="feature-card__text">Manage your academic work and deadlines in one place.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- EXPERIENCE SECTION                           -->
+  <!-- ============================================ -->
+  <section class="section section--experience" id="experience" aria-label="ClassMate experience">
+    <div class="container">
+      <div class="section__content section__content--center">
+        <h2 class="section__title section__title--large anim-reveal">Less remembering. More doing.</h2>
+      </div>
+      <div class="experience__showcase anim-reveal">
+        <div class="experience__glow" aria-hidden="true"></div>
+        <div class="experience__device">
+          <div class="experience__screen">
+            <div class="experience__flow">
+              <div class="experience__step experience__step--active" data-step="0">
+                <div class="experience__step-label">Classes</div>
+                <div class="experience__step-cards">
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--blue"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--purple"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--green"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                </div>
+              </div>
+              <div class="experience__step" data-step="1">
+                <div class="experience__step-label">Quizzes</div>
+                <div class="experience__step-cards">
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--teal"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--orange"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                </div>
+              </div>
+              <div class="experience__step" data-step="2">
+                <div class="experience__step-label">Work</div>
+                <div class="experience__step-cards">
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--pink"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--blue"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--green"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                </div>
+              </div>
+              <div class="experience__step" data-step="3">
+                <div class="experience__step-label">Deadlines</div>
+                <div class="experience__step-cards">
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--red"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                  <div class="experience__mini-card"><span class="experience__dot experience__dot--orange"></span><div class="experience__mini-lines"><div class="experience__mini-line"></div><div class="experience__mini-line experience__mini-line--short"></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Flow indicators -->
+          <div class="experience__indicators" aria-hidden="true">
+            <button class="experience__indicator experience__indicator--active" data-goto="0" aria-label="View classes"></button>
+            <button class="experience__indicator" data-goto="1" aria-label="View quizzes"></button>
+            <button class="experience__indicator" data-goto="2" aria-label="View work"></button>
+            <button class="experience__indicator" data-goto="3" aria-label="View deadlines"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- INSTALLATION SECTION                         -->
+  <!-- ============================================ -->
+  <section class="section section--install" id="install" aria-label="Install ClassMate">
+    <div class="container">
+      <div class="section__content section__content--center">
+        <h2 class="section__title section__title--large anim-reveal">ClassMate is ready when you are.</h2>
+        <p class="section__text anim-reveal">Install it once and keep your academic life one tap away.</p>
+
+        <!-- State 1: Installable / Active Button -->
+        <div class="install-state install-state--installable anim-reveal" data-install-state="installable">
+          <button class="btn btn--primary btn--large btn--install" data-install-btn aria-label="Install ClassMate">
+            <svg class="btn__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="btn__spinner" aria-hidden="true"></span>
+            <span class="btn__text">Install ClassMate</span>
+          </button>
+          <p class="install-state__note" id="installStateNote">Fast, lightweight, and works seamlessly on your device.</p>
+        </div>
+
+        <!-- State 2: Already installed -->
+        <div class="install-state install-state--installed" data-install-state="installed" hidden>
+          <div class="install-state__badge">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>ClassMate is already installed.</span>
+          </div>
+          <p class="install-state__note">Launch ClassMate directly from your home screen or app drawer.</p>
+        </div>
+
+        <!-- State 3: Manual Guide Trigger -->
+        <div class="install-state install-state--manual" data-install-state="manual" hidden>
+          <button class="btn btn--primary btn--large btn--install" data-install-btn aria-label="Install ClassMate">
+            <svg class="btn__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="btn__text">Install ClassMate</span>
+          </button>
+          <p class="install-state__note">Tap above to view step-by-step installation instructions for your browser.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FACEBOOK SECTION                             -->
+  <!-- ============================================ -->
+  <section class="section section--social" id="social" aria-label="Follow ClassMate">
+    <div class="container">
+      <div class="section__content section__content--center">
+        <h2 class="section__title anim-reveal">Stay connected with ClassMate.</h2>
+        <p class="section__text anim-reveal">Follow ClassMate for updates, announcements and new features.</p>
+        <div class="anim-reveal">
+          <a href="https://www.facebook.com/Classmate.studentapp/" target="_blank" rel="noopener noreferrer" class="btn btn--facebook" aria-label="Follow ClassMate on Facebook">
+            <svg class="btn__icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Follow on Facebook
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FINAL CTA                                    -->
+  <!-- ============================================ -->
+  <section class="section section--cta" id="cta" aria-label="Get started with ClassMate">
+    <div class="container">
+      <div class="cta__glow" aria-hidden="true"></div>
+      <div class="section__content section__content--center">
+        <img src="assets/logo.png" alt="ClassMate" class="cta__logo anim-reveal" width="80" height="80" loading="lazy">
+        <h2 class="section__title section__title--large anim-reveal">Ready to get organized?</h2>
+        <p class="section__text anim-reveal">Install ClassMate and keep your academic life in one place.</p>
+        <div class="cta__actions anim-reveal">
+          <button class="btn btn--primary btn--large btn--install" data-install-btn aria-label="Install ClassMate">
+            <svg class="btn__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="btn__spinner" aria-hidden="true"></span>
+            <span class="btn__text">Install ClassMate</span>
+          </button>
+          <a href="https://www.facebook.com/Classmate.studentapp/" target="_blank" rel="noopener noreferrer" class="btn btn--secondary" aria-label="Follow ClassMate on Facebook">
+            <svg class="btn__icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Follow on Facebook
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FOOTER                                       -->
+  <!-- ============================================ -->
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer__inner">
+        <div class="footer__brand">
+          <img src="assets/logo-small.png" alt="" class="footer__logo" width="28" height="28" loading="lazy">
+          <span class="footer__name">ClassMate</span>
+        </div>
+        <p class="footer__tagline">Never miss any deadline.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================ -->
+  <!-- TOAST NOTIFICATION                           -->
+  <!-- ============================================ -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <div class="toast__content">
+      <span class="toast__icon" id="toastIcon"></span>
+      <span class="toast__msg" id="toastMsg"></span>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: Android Chrome Manual Install Guide   -->
+  <!-- ============================================ -->
+  <div class="modal" id="androidModal" role="dialog" aria-modal="true" aria-label="Android installation guide" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__content">
+      <button class="modal__close" data-modal-close aria-label="Close modal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="modal__body">
+        <img src="assets/logo.png" alt="ClassMate" class="modal__logo" width="56" height="56">
+        <h3 class="modal__title">Install from Chrome</h3>
+        <p class="modal__subtitle">Follow these quick steps on Android</p>
+        <div class="modal__steps">
+          <div class="modal__step">
+            <div class="modal__step-number">1</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Tap the <strong>three dots</strong> menu in the top-right corner</p>
+              <span class="modal__step-hint">Look for the ⋮ icon at the top of your screen</span>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">2</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Choose <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></p>
+              <span class="modal__step-hint">Selecting "Install app" installs the full ClassMate application</span>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">3</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Tap <strong>"Install"</strong> to confirm</p>
+              <span class="modal__step-hint">ClassMate will appear right on your home screen</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: In-App Browser Guide (Facebook/Insta) -->
+  <!-- ============================================ -->
+  <div class="modal" id="inAppModal" role="dialog" aria-modal="true" aria-label="Open in browser guide" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__content">
+      <button class="modal__close" data-modal-close aria-label="Close modal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="modal__body">
+        <img src="assets/logo.png" alt="ClassMate" class="modal__logo" width="56" height="56">
+        <h3 class="modal__title">Open in Browser to Install</h3>
+        <p class="modal__subtitle">In-app browsers don't support direct app installation</p>
+        <div class="modal__steps">
+          <div class="modal__step">
+            <div class="modal__step-number">1</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Tap the <strong>three dots</strong> (⋮ or ⋯) at the top</p>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">2</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Choose <strong>"Open in Chrome"</strong> or <strong>"Open in Browser"</strong></p>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">3</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Tap <strong>"Install ClassMate"</strong> in Chrome</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: iOS Install Guide Modal               -->
+  <!-- ============================================ -->
+  <div class="modal" id="iosModal" role="dialog" aria-modal="true" aria-label="iOS installation guide" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__content">
+      <button class="modal__close" data-modal-close aria-label="Close modal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="modal__body">
+        <img src="assets/logo.png" alt="ClassMate" class="modal__logo" width="56" height="56">
+        <h3 class="modal__title">Install ClassMate on iPhone</h3>
+        <p class="modal__subtitle">Follow these quick steps in Safari</p>
+        <div class="modal__steps">
+          <div class="modal__step">
+            <div class="modal__step-number">1</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Tap the <strong>Share</strong> button
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 4px;" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </p>
+              <span class="modal__step-hint">Located at the bottom bar in Safari</span>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">2</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Scroll down and tap <strong>"Add to Home Screen"</strong></p>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">3</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Tap <strong>"Add"</strong> in the top-right corner</p>
+              <span class="modal__step-hint">ClassMate will launch directly into the app from your home screen</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: Desktop Browser Guide                 -->
+  <!-- ============================================ -->
+  <div class="modal" id="desktopModal" role="dialog" aria-modal="true" aria-label="Desktop installation guide" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__content">
+      <button class="modal__close" data-modal-close aria-label="Close modal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="modal__body">
+        <img src="assets/logo.png" alt="ClassMate" class="modal__logo" width="56" height="56">
+        <h3 class="modal__title">Install on Computer</h3>
+        <p class="modal__subtitle">Launch ClassMate like a native desktop app</p>
+        <div class="modal__steps">
+          <div class="modal__step">
+            <div class="modal__step-number">1</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Look for the <strong>Install</strong> icon in the address bar</p>
+              <span class="modal__step-hint">Usually an icon on the right side of the URL bar</span>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">2</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Or click browser menu (⋮) > <strong>"Install ClassMate"</strong></p>
+            </div>
+          </div>
+          <div class="modal__step">
+            <div class="modal__step-number">3</div>
+            <div class="modal__step-info">
+              <p class="modal__step-text">Click <strong>"Install"</strong> to confirm</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

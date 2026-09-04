@@ -5,9 +5,16 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/install",
+      "destination": "/install/index.html"
+    },
+    {
+      "source": "/install/(.*)",
+      "destination": "/install/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
-

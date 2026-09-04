@@ -9,11 +9,17 @@ initTheme();
 
 // Register PWA service worker on load
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
+  const registerSW = () => {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' }).catch((err) => {
       console.warn('PWA service worker registration notice:', err);
     });
-  });
+  };
+
+  if (document.readyState === 'complete') {
+    registerSW();
+  } else {
+    window.addEventListener('load', registerSW);
+  }
 }
 
 createRoot(document.getElementById('root')!).render(
