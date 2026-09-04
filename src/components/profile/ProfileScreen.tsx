@@ -1,34 +1,28 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, Edit3, Laptop, Moon, Sun, Trash2 } from 'lucide-react';
+import {
+  Bell,
+  Check,
+  ChevronRight,
+  Copy,
+  Edit3,
+  ExternalLink,
+  Info,
+  Laptop,
+  LogOut,
+  Mail,
+  Moon,
+  Send,
+  Sun,
+  Trash2,
+  User as UserIcon,
+  Users,
+} from 'lucide-react';
 import type { ApprovalMode, Group, User } from '../../types';
 import { formatFriendlyDate, getExpirationCountdown } from '../../lib/auth';
 import { store } from '../../lib/store';
 import { LIMITS } from '../../lib/validation';
 import type { ThemePreference } from '../../lib/theme';
-import { LogoutButton } from './LogoutButton';
-
-interface InfoRowProps {
-  label: string;
-  value: string | number;
-  last?: boolean;
-}
-
-function InfoRow({ label, value, last }: InfoRowProps) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 0',
-        borderBottom: last ? 'none' : '1px solid var(--c-hairline)',
-      }}
-    >
-      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-text-faint)' }}>{label}</span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--c-text-soft)' }}>{value}</span>
-    </div>
-  );
-}
+import { Sheet } from '../common/Sheet';
 
 interface ProfileScreenProps {
   user: User;
@@ -49,6 +43,224 @@ interface ProfileScreenProps {
   onCreateClassClick: () => void;
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: 'var(--c-text-faint)',
+        margin: '20px 0 7px 4px',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SettingsCard({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--c-card-bg)',
+        borderRadius: 16,
+        border: '1px solid var(--c-hairline)',
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface SettingsRowProps {
+  icon: React.ReactNode;
+  iconBg?: string;
+  iconColor?: string;
+  title: string;
+  subtitle?: string;
+  value?: string | React.ReactNode;
+  onClick?: () => void;
+  showChevron?: boolean;
+  rightElement?: React.ReactNode;
+  isDestructive?: boolean;
+}
+
+function SettingsRow({
+  icon,
+  iconBg,
+  iconColor,
+  title,
+  subtitle,
+  value,
+  onClick,
+  showChevron = true,
+  rightElement,
+  isDestructive = false,
+}: SettingsRowProps) {
+  return (
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '13px 16px',
+        gap: 13,
+        cursor: onClick ? 'pointer' : 'default',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: iconBg || (isDestructive ? 'var(--c-danger-bg)' : 'var(--c-card-subtle)'),
+          color: iconColor || (isDestructive ? 'var(--c-danger)' : 'var(--c-accent)'),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 500,
+            color: isDestructive ? 'var(--c-danger)' : 'var(--c-text)',
+            lineHeight: 1.3,
+          }}
+        >
+          {title}
+        </div>
+        {subtitle && (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: 'var(--c-text-faint)',
+              marginTop: 1,
+              lineHeight: 1.3,
+            }}
+          >
+            {subtitle}
+          </div>
+        )}
+      </div>
+      {value && (
+        <div
+          style={{
+            fontSize: 14.5,
+            fontFamily:
+              typeof value === 'string' && /\d/.test(value)
+                ? 'var(--font-mono)'
+                : 'var(--font-body)',
+            color: 'var(--c-text-soft)',
+            flexShrink: 0,
+            marginRight: 2,
+            maxWidth: 180,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {value}
+        </div>
+      )}
+      {rightElement ? (
+        rightElement
+      ) : showChevron ? (
+        <ChevronRight
+          size={16}
+          color={isDestructive ? 'var(--c-danger)' : 'var(--c-text-faint)'}
+          style={{ flexShrink: 0 }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function RowDivider() {
+  return (
+    <div
+      style={{
+        marginLeft: 61,
+        borderBottom: '1px solid var(--c-hairline)',
+      }}
+    />
+  );
+}
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label || 'Toggle switch'}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange();
+      }}
+      style={{
+        width: 48,
+        height: 29,
+        borderRadius: 15,
+        background: checked ? 'var(--c-success)' : 'var(--c-hairline-strong)',
+        position: 'relative',
+        transition: 'background-color 200ms ease',
+        border: 'none',
+        cursor: 'pointer',
+        padding: 2,
+        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 25,
+          height: 25,
+          borderRadius: '50%',
+          background: '#FFFFFF',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.18)',
+          transform: checked ? 'translateX(19px)' : 'translateX(0)',
+          transition: 'transform 200ms cubic-bezier(0.3, 0.85, 0.4, 1)',
+        }}
+      />
+    </button>
+  );
+}
+
 export function ProfileScreen({
   user,
   group,
@@ -67,8 +279,18 @@ export function ProfileScreen({
   onJoinClick,
   onCreateClassClick,
 }: ProfileScreenProps) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [pendingOpen, setPendingOpen] = useState(false);
+  // Modal / Sheet States
+  const [manageSheetOpen, setManageSheetOpen] = useState(false);
+  const [appearanceSheetOpen, setAppearanceSheetOpen] = useState(false);
+  const [aboutSheetOpen, setAboutSheetOpen] = useState(false);
+  const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [classDetailsOpen, setClassDetailsOpen] = useState(false);
+
+  // Copy Feedback States
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedRegId, setCopiedRegId] = useState(false);
+
+  // Section Name Editing State
   const [editingSectionName, setEditingSectionName] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [savingSectionName, setSavingSectionName] = useState(false);
@@ -76,844 +298,1272 @@ export function ProfileScreen({
 
   const editCount = group?.section_name_edit_count ?? 0;
   const canEditSectionName = Boolean(isCR && group && editCount < 2);
-
   const pendingRequests = isCR && group ? store.getPendingRequestsForHost(user.id) : [];
 
+  const handleCopyClassCode = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    onCopyCode();
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleCopyRegId = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(user.username);
+      setCopiedRegId(true);
+      setTimeout(() => setCopiedRegId(false), 2000);
+    }
+  };
+
+  // Formatted Registration ID (e.g. "251 - 35 - 118")
+  const formattedRegId = user.username.includes('-')
+    ? user.username.split('-').join(' - ')
+    : user.username;
+
+  // Theme Preference Title & Icon
+  const themeNames: Record<ThemePreference, string> = {
+    system: 'System',
+    light: 'Light',
+    dark: 'Dark',
+  };
+  const ThemeIcon = themePreference === 'dark' ? Moon : themePreference === 'light' ? Sun : Laptop;
+
+  // Notification status
+  const isNotificationsActive = notificationPermission === 'granted';
+  const notificationSubtitle = isNotificationsActive
+    ? hasFcmToken
+      ? 'FCM push notifications active'
+      : 'Browser notifications allowed'
+    : 'Routine and schedule updates';
+
+  const memberCount = Math.min(
+    50,
+    Math.max(0, typeof group?.member_count === 'number' ? group.member_count : 1)
+  );
+
   return (
-    <main style={{ paddingBottom: 24 }}>
-      {/* User Info Section */}
-      <section style={{ padding: '8px 0 20px' }}>
-        <h1
-          style={{
-            fontFamily: 'var(--font-head)',
-            fontSize: 30,
-            fontWeight: 700,
-            letterSpacing: '-0.025em',
-            color: 'var(--c-text)',
-            margin: '0 0 4px',
-          }}
-        >
-          {user.username}
-        </h1>
-        <p
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 15,
-            fontWeight: 400,
-            color: 'var(--c-text-soft)',
-            margin: 0,
-          }}
-        >
-          {user.email}
-        </p>
-        {isCR && (
+    <main style={{ paddingBottom: 28 }}>
+      {/* ========================================================
+          1. CURRENT CLASS SECTION
+          ======================================================== */}
+      <SectionLabel>Current Class</SectionLabel>
+
+      {group ? (
+        <SettingsCard style={{ padding: '16px 18px' }}>
+          {/* Top Row: Class icon, name, code, capacity, chevron */}
+          <div
+            onClick={() => {
+              if (isCR) {
+                setManageSheetOpen(true);
+              } else {
+                setClassDetailsOpen(true);
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 13,
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            {/* Blue outlined users icon inside light-blue container */}
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: 'var(--c-accent-bg)',
+                color: 'var(--c-accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Users size={22} strokeWidth={2} />
+            </div>
+
+            {/* Class Name + Code + Capacity */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-head)',
+                    fontSize: 16.5,
+                    fontWeight: 700,
+                    color: 'var(--c-text)',
+                    margin: 0,
+                    letterSpacing: '-0.015em',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {group.name}
+                </h3>
+                {isCR && (
+                  <span
+                    style={{
+                      background: 'var(--c-accent-bg)',
+                      color: 'var(--c-accent)',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      padding: '2px 6px',
+                      borderRadius: 6,
+                      flexShrink: 0,
+                    }}
+                  >
+                    CR
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                {/* Class Code with small copy icon */}
+                <button
+                  type="button"
+                  onClick={handleCopyClassCode}
+                  title="Click to copy class code"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    background: 'var(--c-card-subtle)',
+                    padding: '2px 7px',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: 'var(--c-text)',
+                    }}
+                  >
+                    #{group.code}
+                  </span>
+                  {copiedCode ? (
+                    <Check size={12} color="var(--c-success)" />
+                  ) : (
+                    <Copy size={12} color="var(--c-text-faint)" />
+                  )}
+                </button>
+
+                {/* Capacity */}
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                    color: 'var(--c-text-faint)',
+                    fontWeight: 500,
+                  }}
+                >
+                  ({memberCount}/50)
+                </span>
+              </div>
+            </div>
+
+            {/* Chevron Right */}
+            <ChevronRight size={18} color="var(--c-text-faint)" style={{ flexShrink: 0 }} />
+          </div>
+
+          {/* Thin Divider */}
           <div
             style={{
-              display: 'inline-block',
-              marginTop: 8,
-              padding: '3px 10px',
-              borderRadius: 8,
+              borderBottom: '1px solid var(--c-hairline)',
+              margin: '14px 0 12px',
+            }}
+          />
+
+          {/* Info Row: Students count | Green Active Dot | Expiry */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 12.5,
+              fontFamily: 'var(--font-body)',
+              color: 'var(--c-text-soft)',
+              padding: '0 4px',
+            }}
+          >
+            <span>{memberCount} Students</span>
+
+            <div style={{ width: 1, height: 12, background: 'var(--c-hairline)' }} />
+
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--c-success)',
+                  display: 'inline-block',
+                }}
+              />
+              Active
+            </span>
+
+            <div style={{ width: 1, height: 12, background: 'var(--c-hairline)' }} />
+
+            {getExpirationCountdown(group.expires_at).isFinalWeek ? (
+              <span style={{ color: 'var(--c-danger)', fontWeight: 600 }}>
+                {getExpirationCountdown(group.expires_at).label}
+              </span>
+            ) : (
+              <span>Expires {formatFriendlyDate(group.expires_at)}</span>
+            )}
+          </div>
+
+          {/* If CR: Bottom large light-blue "Manage Class" button with chevron */}
+          {isCR && (
+            <button
+              type="button"
+              onClick={() => setManageSheetOpen(true)}
+              style={{
+                width: '100%',
+                marginTop: 14,
+                background: 'var(--c-accent-bg)',
+                color: 'var(--c-accent)',
+                borderRadius: 12,
+                padding: '11px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: 14.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: 'none',
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              <span>Manage Class</span>
+              <ChevronRight size={16} />
+            </button>
+          )}
+        </SettingsCard>
+      ) : (
+        /* Empty State */
+        <SettingsCard style={{ padding: '22px 18px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
               background: 'var(--c-accent-bg)',
               color: 'var(--c-accent)',
-              fontSize: 11.5,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
             }}
           >
-            Class Representative
+            <Users size={24} strokeWidth={2} />
           </div>
-        )}
-      </section>
-
-      {/* 1. Current Class Section */}
-      <div style={{ marginTop: 12 }}>
-        <h2
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--c-text-faint)',
-            margin: '0 0 8px 4px',
-          }}
-        >
-          Current Class
-        </h2>
-
-        {group ? (
           <div
             style={{
-              background: 'var(--c-card-bg)',
-              borderRadius: 16,
-              border: '1px solid var(--c-hairline)',
-              padding: '16px 18px',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+              fontFamily: 'var(--font-head)',
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--c-text)',
+              marginBottom: 4,
             }}
           >
+            No Class Joined
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: 'var(--c-text-soft)',
+              marginBottom: 16,
+              lineHeight: 1.4,
+            }}
+          >
+            Join with your 6-character class code or create a new class.
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={onJoinClick}
+              style={{
+                padding: '9px 16px',
+                borderRadius: 10,
+                background: 'var(--c-accent)',
+                color: '#FFFFFF',
+                fontSize: 13.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: 'none',
+              }}
+            >
+              Join with code
+            </button>
+            <button
+              type="button"
+              onClick={onCreateClassClick}
+              style={{
+                padding: '9px 16px',
+                borderRadius: 10,
+                background: 'var(--c-card-subtle)',
+                border: '1px solid var(--c-hairline)',
+                color: 'var(--c-text-soft)',
+                fontSize: 13.5,
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              Create class
+            </button>
+          </div>
+        </SettingsCard>
+      )}
+
+      {/* ========================================================
+          2. ACCOUNT SECTION
+          ======================================================== */}
+      <SectionLabel>Account</SectionLabel>
+      <SettingsCard>
+        {/* Row 1: Reg ID */}
+        <SettingsRow
+          icon={<UserIcon size={17} />}
+          title="Reg ID"
+          value={formattedRegId}
+          onClick={handleCopyRegId}
+          rightElement={
+            copiedRegId ? (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: 'var(--c-success)',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
+                <Check size={14} /> Copied
+              </span>
+            ) : undefined
+          }
+        />
+
+        <RowDivider />
+
+        {/* Row 2: Email */}
+        <SettingsRow
+          icon={<Mail size={17} />}
+          title="Email"
+          value={user.email}
+          onClick={() => {
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(user.email);
+            }
+          }}
+        />
+      </SettingsCard>
+
+      {/* ========================================================
+          3. PREFERENCES SECTION
+          ======================================================== */}
+      <SectionLabel>Preferences</SectionLabel>
+      <SettingsCard>
+        {/* Row 1: Push Notifications */}
+        <SettingsRow
+          icon={<Bell size={17} />}
+          title="Push Notifications"
+          subtitle={notificationSubtitle}
+          showChevron={false}
+          rightElement={
+            <ToggleSwitch
+              checked={isNotificationsActive}
+              onChange={onEnableNotifications}
+              label="Push Notifications"
+            />
+          }
+        />
+
+        <RowDivider />
+
+        {/* Row 2: Appearance */}
+        <SettingsRow
+          icon={<ThemeIcon size={17} />}
+          title="Appearance"
+          subtitle={themeNames[themePreference]}
+          onClick={() => setAppearanceSheetOpen(true)}
+        />
+      </SettingsCard>
+
+      {/* ========================================================
+          4. SUPPORT SECTION
+          ======================================================== */}
+      <SectionLabel>Support</SectionLabel>
+      <SettingsCard>
+        {/* Row 1: About Classmate */}
+        <SettingsRow
+          icon={<Info size={17} />}
+          title="About Classmate"
+          onClick={() => setAboutSheetOpen(true)}
+        />
+
+        <RowDivider />
+
+        {/* Row 2: Contact Developer */}
+        <SettingsRow
+          icon={<Send size={16} />}
+          title="Contact Developer"
+          onClick={() => setContactSheetOpen(true)}
+        />
+      </SettingsCard>
+
+      {/* ========================================================
+          5. SIGN OUT SECTION
+          ======================================================== */}
+      <div style={{ marginTop: 20 }}>
+        <SettingsCard>
+          <SettingsRow
+            icon={<LogOut size={17} />}
+            title="Sign Out"
+            isDestructive={true}
+            onClick={onLogout}
+          />
+        </SettingsCard>
+      </div>
+
+      {/* ========================================================
+          SHEET: MANAGE CLASS (CR)
+          ======================================================== */}
+      {group && isCR && (
+        <Sheet open={manageSheetOpen} onClose={() => setManageSheetOpen(false)}>
+          <div style={{ padding: '8px 20px 32px' }}>
+            {/* Sheet Header */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: 8,
+                paddingBottom: 14,
+                borderBottom: '1px solid var(--c-hairline)',
+                marginBottom: 18,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                <h3
+              <div>
+                <h2
                   style={{
                     fontFamily: 'var(--font-head)',
-                    fontSize: 17,
-                    fontWeight: 600,
+                    fontSize: 18,
+                    fontWeight: 700,
                     color: 'var(--c-text)',
                     margin: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '-0.015em',
                   }}
                 >
-                  {group.name}
-                </h3>
-                {isCR && canEditSectionName && !editingSectionName && (
-                  <button
-                    onClick={() => {
-                      setNewSectionName(group.name);
-                      setEditingSectionName(true);
-                      setSectionNameError(null);
-                    }}
-                    title="Edit section name"
-                    style={{
-                      color: 'var(--c-accent)',
-                      padding: 2,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      cursor: 'pointer',
-                      background: 'none',
-                      border: 'none',
-                    }}
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                )}
+                  Manage Class
+                </h2>
+                <span style={{ fontSize: 12.5, color: 'var(--c-text-faint)' }}>
+                  Class Representative Controls
+                </span>
               </div>
-              {isCR && (
+              <button
+                type="button"
+                onClick={() => setManageSheetOpen(false)}
+                style={{
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: 'var(--c-accent)',
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Done
+              </button>
+            </div>
+
+            {/* Section Name Management */}
+            <div style={{ marginBottom: 20 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 8,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    color: 'var(--c-text-faint)',
+                  }}
+                >
+                  Section Name
+                </span>
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    color: 'var(--c-text-faint)',
-                    flexShrink: 0,
+                    fontSize: 12,
+                    color: canEditSectionName ? 'var(--c-accent)' : 'var(--c-text-faint)',
                   }}
-                  title="Class Capacity (Current / Max 50)"
                 >
-                  ({Math.min(50, Math.max(0, typeof group.member_count === 'number' ? group.member_count : 1))}/50)
+                  {2 - editCount} edit{2 - editCount === 1 ? '' : 's'} remaining
                 </span>
+              </div>
+
+              {!editingSectionName ? (
+                <div
+                  style={{
+                    background: 'var(--c-card-subtle)',
+                    border: '1px solid var(--c-hairline)',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--c-text)' }}>
+                    {group.name}
+                  </span>
+                  {canEditSectionName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewSectionName(group.name);
+                        setEditingSectionName(true);
+                        setSectionNameError(null);
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        color: 'var(--c-accent)',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                      }}
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (savingSectionName || !newSectionName.trim()) return;
+                    setSavingSectionName(true);
+                    setSectionNameError(null);
+                    try {
+                      const res = await onUpdateSectionName?.(newSectionName);
+                      if (res?.success) {
+                        setEditingSectionName(false);
+                      } else {
+                        setSectionNameError(res?.error || 'Failed to update section name.');
+                      }
+                    } catch (err: unknown) {
+                      const eObj = err as { message?: string };
+                      setSectionNameError(eObj?.message || 'Failed to update section name.');
+                    } finally {
+                      setSavingSectionName(false);
+                    }
+                  }}
+                  style={{
+                    background: 'var(--c-card-subtle)',
+                    border: '1px solid var(--c-hairline)',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={newSectionName}
+                    onChange={(e) => setNewSectionName(e.target.value)}
+                    placeholder="e.g. Software Engineering — Section I"
+                    maxLength={LIMITS.CLASS_NAME}
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--c-hairline-strong)',
+                      background: 'var(--c-card-bg)',
+                      color: 'var(--c-text)',
+                      fontSize: 14,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      marginBottom: 8,
+                    }}
+                  />
+                  {sectionNameError && (
+                    <div style={{ fontSize: 12, color: 'var(--c-danger)', marginBottom: 8 }}>
+                      {sectionNameError}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSectionName(false);
+                        setSectionNameError(null);
+                      }}
+                      disabled={savingSectionName}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        color: 'var(--c-text-soft)',
+                        borderRadius: 8,
+                        border: '1px solid var(--c-hairline)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={
+                        savingSectionName ||
+                        !newSectionName.trim() ||
+                        newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                      }
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: '#FFFFFF',
+                        background: 'var(--c-accent)',
+                        borderRadius: 8,
+                        border: 'none',
+                        cursor:
+                          savingSectionName ||
+                          !newSectionName.trim() ||
+                          newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                            ? 'default'
+                            : 'pointer',
+                        opacity:
+                          savingSectionName ||
+                          !newSectionName.trim() ||
+                          newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                            ? 0.6
+                            : 1,
+                      }}
+                    >
+                      {savingSectionName ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
               )}
             </div>
 
-            {editingSectionName && (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (savingSectionName || !newSectionName.trim()) return;
-                  setSavingSectionName(true);
-                  setSectionNameError(null);
-                  try {
-                    const res = await onUpdateSectionName?.(newSectionName);
-                    if (res?.success) {
-                      setEditingSectionName(false);
-                    } else {
-                      setSectionNameError(res?.error || 'Failed to update section name.');
-                    }
-                  } catch (err: unknown) {
-                    const eObj = err as { message?: string };
-                    setSectionNameError(eObj?.message || 'Failed to update section name.');
-                  } finally {
-                    setSavingSectionName(false);
-                  }
-                }}
+            {/* Approval Mode */}
+            <div style={{ marginBottom: 20 }}>
+              <span
                 style={{
-                  marginTop: 10,
-                  padding: '10px 12px',
+                  display: 'block',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'var(--c-text-faint)',
+                  marginBottom: 8,
+                }}
+              >
+                Student Approval Mode
+              </span>
+              <div
+                style={{
                   background: 'var(--c-card-subtle)',
-                  borderRadius: 10,
                   border: '1px solid var(--c-hairline)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
                 }}
               >
                 <div
                   style={{
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    color: 'var(--c-text-soft)',
-                    marginBottom: 6,
                     display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'space-between',
+                    marginBottom: 6,
                   }}
                 >
-                  <span>Edit Section Name</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-accent)' }}>
-                    {2 - editCount} edit{2 - editCount === 1 ? '' : 's'} left
+                  <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--c-text)' }}>
+                    {group.approval_mode === 'auto' ? 'Auto Approval' : 'Manual Approval'}
                   </span>
-                </div>
-                <input
-                  type="text"
-                  value={newSectionName}
-                  onChange={(e) => setNewSectionName(e.target.value)}
-                  placeholder="e.g. Software Engineering — Section I"
-                  maxLength={LIMITS.CLASS_NAME}
-                  autoFocus
-                  style={{
-                    width: '100%',
-                    padding: '7px 10px',
-                    borderRadius: 8,
-                    border: '1px solid var(--c-hairline-strong)',
-                    background: 'var(--c-card-bg)',
-                    color: 'var(--c-text)',
-                    fontSize: 13.5,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    marginBottom: 6,
-                  }}
-                />
-                {sectionNameError && (
-                  <div style={{ fontSize: 11.5, color: 'var(--c-danger)', marginBottom: 6 }}>
-                    {sectionNameError}
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setEditingSectionName(false);
-                      setSectionNameError(null);
-                    }}
-                    disabled={savingSectionName}
-                    style={{
-                      padding: '5px 10px',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: 'var(--c-text-soft)',
-                      borderRadius: 6,
-                      border: '1px solid var(--c-hairline)',
-                      cursor: 'pointer',
-                      background: 'none',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      savingSectionName ||
-                      !newSectionName.trim() ||
-                      newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
+                    onClick={() =>
+                      onToggleApprovalMode?.(group.approval_mode === 'auto' ? 'manual' : 'auto')
                     }
                     style={{
-                      padding: '5px 12px',
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: 600,
-                      color: '#ffffff',
-                      background: 'var(--c-accent)',
-                      borderRadius: 6,
-                      border: 'none',
-                      cursor:
-                        savingSectionName ||
-                        !newSectionName.trim() ||
-                        newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
-                          ? 'default'
-                          : 'pointer',
-                      opacity:
-                        savingSectionName ||
-                        !newSectionName.trim() ||
-                        newSectionName.trim().toLowerCase() === group.name.trim().toLowerCase()
-                          ? 0.6
-                          : 1,
+                      color: 'var(--c-accent)',
+                      cursor: 'pointer',
                     }}
                   >
-                    {savingSectionName ? 'Saving...' : 'Save'}
+                    Switch to {group.approval_mode === 'auto' ? 'Manual' : 'Auto'}
                   </button>
                 </div>
-              </form>
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: 'var(--c-text-faint)',
+                    margin: 0,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {group.approval_mode === 'auto'
+                    ? 'Students with your class code can join immediately without waiting.'
+                    : 'New students who enter your class code must be approved by you before joining.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Pending Requests */}
+            {pendingRequests.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    color: 'var(--c-text-faint)',
+                    marginBottom: 8,
+                  }}
+                >
+                  Pending Requests ({pendingRequests.length})
+                </span>
+                <div
+                  style={{
+                    background: 'var(--c-card-subtle)',
+                    border: '1px solid var(--c-hairline)',
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {pendingRequests.map((req, idx) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderBottom:
+                          idx < pendingRequests.length - 1
+                            ? '1px solid var(--c-hairline)'
+                            : 'none',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 13.5,
+                          fontWeight: 500,
+                          color: 'var(--c-text)',
+                        }}
+                      >
+                        {req.username}
+                      </span>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          type="button"
+                          onClick={() => store.respondToJoinRequest(req.id, true)}
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            color: 'var(--c-accent)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => store.respondToJoinRequest(req.id, false)}
+                          style={{
+                            fontSize: 12.5,
+                            color: 'var(--c-danger)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
+            {/* Danger Actions */}
+            <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--c-hairline)' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setManageSheetOpen(false);
+                  onLeave();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '11px 0',
+                  fontSize: 14.5,
+                  fontWeight: 500,
+                  color: 'var(--c-danger)',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: 'none',
+                }}
+              >
+                Leave class
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setManageSheetOpen(false);
+                  onDeleteGroup?.();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '11px 0',
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: 'var(--c-danger)',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Trash2 size={16} />
+                <span>Delete Class</span>
+              </button>
+            </div>
+          </div>
+        </Sheet>
+      )}
+
+      {/* ========================================================
+          SHEET: CLASS DETAILS (NON-CR)
+          ======================================================== */}
+      {group && !isCR && (
+        <Sheet open={classDetailsOpen} onClose={() => setClassDetailsOpen(false)}>
+          <div style={{ padding: '8px 20px 32px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: 14,
+                borderBottom: '1px solid var(--c-hairline)',
+                marginBottom: 18,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-head)',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: 'var(--c-text)',
+                  margin: 0,
+                }}
+              >
+                Class Information
+              </h2>
+              <button
+                type="button"
+                onClick={() => setClassDetailsOpen(false)}
+                style={{
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: 'var(--c-accent)',
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Done
+              </button>
+            </div>
+
+            <SettingsCard style={{ marginBottom: 20 }}>
+              <SettingsRow
+                icon={<Users size={16} />}
+                title="Class Name"
+                value={group.name}
+                showChevron={false}
+              />
+              <RowDivider />
+              <SettingsRow
+                icon={<Copy size={16} />}
+                title="Class Code"
+                value={`#${group.code}`}
+                onClick={handleCopyClassCode}
+                rightElement={
+                  copiedCode ? (
+                    <span style={{ fontSize: 12, color: 'var(--c-success)', fontWeight: 600 }}>
+                      Copied
+                    </span>
+                  ) : undefined
+                }
+              />
+              <RowDivider />
+              <SettingsRow
+                icon={<UserIcon size={16} />}
+                title="Enrolled Students"
+                value={`${memberCount} / 50`}
+                showChevron={false}
+              />
+            </SettingsCard>
+
+            <button
+              type="button"
+              onClick={() => {
+                setClassDetailsOpen(false);
+                onLeave();
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 12,
+                background: 'var(--c-danger-bg)',
+                color: 'var(--c-danger)',
+                fontSize: 14.5,
+                fontWeight: 600,
+                textAlign: 'center',
+                cursor: 'pointer',
+                border: 'none',
+              }}
+            >
+              Leave this class
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {/* ========================================================
+          SHEET: APPEARANCE SELECTION
+          ======================================================== */}
+      <Sheet open={appearanceSheetOpen} onClose={() => setAppearanceSheetOpen(false)}>
+        <div style={{ padding: '8px 20px 32px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 14,
+              borderBottom: '1px solid var(--c-hairline)',
+              marginBottom: 18,
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: 'var(--font-head)',
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--c-text)',
+                margin: 0,
+              }}
+            >
+              Appearance
+            </h2>
+            <button
+              type="button"
+              onClick={() => setAppearanceSheetOpen(false)}
+              style={{
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: 'var(--c-accent)',
+                padding: '4px 8px',
+                cursor: 'pointer',
+              }}
+            >
+              Done
+            </button>
+          </div>
+
+          <SettingsCard>
+            {[
+              { key: 'system' as const, label: 'System', icon: Laptop, desc: 'Match device theme' },
+              { key: 'light' as const, label: 'Light', icon: Sun, desc: 'Clean, light background' },
+              { key: 'dark' as const, label: 'Dark', icon: Moon, desc: 'Subtle dark interface' },
+            ].map((item, idx) => {
+              const isSelected = themePreference === item.key;
+              const IconComponent = item.icon;
+              return (
+                <div key={item.key}>
+                  {idx > 0 && <RowDivider />}
+                  <div
+                    onClick={() => {
+                      onThemeChange(item.key);
+                      setAppearanceSheetOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '14px 16px',
+                      gap: 13,
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        background: isSelected ? 'var(--c-accent-bg)' : 'var(--c-card-subtle)',
+                        color: isSelected ? 'var(--c-accent)' : 'var(--c-text-soft)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <IconComponent size={17} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: isSelected ? 600 : 500,
+                          color: 'var(--c-text)',
+                        }}
+                      >
+                        {item.label}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: 'var(--c-text-faint)' }}>{item.desc}</div>
+                    </div>
+                    {isSelected && (
+                      <Check size={18} color="var(--c-accent)" style={{ flexShrink: 0 }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </SettingsCard>
+        </div>
+      </Sheet>
+
+      {/* ========================================================
+          SHEET: ABOUT CLASSMATE
+          ======================================================== */}
+      <Sheet open={aboutSheetOpen} onClose={() => setAboutSheetOpen(false)}>
+        <div style={{ padding: '8px 20px 32px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 14,
+              borderBottom: '1px solid var(--c-hairline)',
+              marginBottom: 18,
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: 'var(--font-head)',
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--c-text)',
+                margin: 0,
+              }}
+            >
+              About Classmate
+            </h2>
+            <button
+              type="button"
+              onClick={() => setAboutSheetOpen(false)}
+              style={{
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: 'var(--c-accent)',
+                padding: '4px 8px',
+                cursor: 'pointer',
+              }}
+            >
+              Done
+            </button>
+          </div>
+
+          <div style={{ textAlign: 'center', padding: '12px 0 20px' }}>
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 16,
+                background: 'var(--c-accent-bg)',
+                color: 'var(--c-accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px',
+              }}
+            >
+              <Users size={32} strokeWidth={2.2} />
+            </div>
+            <h3
+              style={{
+                fontFamily: 'var(--font-head)',
+                fontSize: 20,
+                fontWeight: 700,
+                color: 'var(--c-text)',
+                margin: '0 0 2px',
+              }}
+            >
+              ClassMate
+            </h3>
+            <span
+              style={{
+                fontSize: 13,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--c-text-faint)',
+              }}
+            >
+              Version 1.0.0
+            </span>
+          </div>
+
+          <SettingsCard style={{ padding: '16px 18px', marginBottom: 16 }}>
             <p
               style={{
                 fontFamily: 'var(--font-body)',
                 fontSize: 14,
-                fontWeight: 400,
                 color: 'var(--c-text-soft)',
-                margin: '6px 0 0',
+                lineHeight: 1.55,
+                margin: '0 0 12px',
               }}
             >
-              <span
-                onClick={onCopyCode}
-                title="Click to copy code"
-                style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-text)', fontWeight: 600, cursor: 'pointer' }}
-              >
-                {group.code}
-              </span>{' '}
-              · {getExpirationCountdown(group.expires_at).isFinalWeek ? (
-                <span style={{ color: 'var(--c-danger)', fontWeight: 600 }}>
-                  {getExpirationCountdown(group.expires_at).label} (Expires {formatFriendlyDate(group.expires_at)})
-                </span>
-              ) : (
-                `Expires ${formatFriendlyDate(group.expires_at)}`
-              )}
+              ClassMate is an exclusive real-time class announcement and schedule platform designed
+              specifically for students and Class Representatives at Daffodil International
+              University (DIU).
             </p>
+            <p
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                color: 'var(--c-text-soft)',
+                lineHeight: 1.55,
+                margin: 0,
+              }}
+            >
+              Get instant updates for quizzes, assignments, class cancellations, and room
+              allocations right on your mobile screen.
+            </p>
+          </SettingsCard>
 
-            {/* CR Accordion */}
-            {isCR && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--c-hairline)' }}>
-                <button
-                  onClick={() => setDetailsOpen((v) => !v)}
-                  style={{
-                    fontFamily: 'var(--font-body)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'var(--c-accent)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  <span>Class details & management</span>
-                  <ChevronDown
-                    size={14}
-                    style={{
-                      transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 200ms ease',
-                    }}
-                  />
-                </button>
-
-                <div
-                  style={{
-                    maxHeight: detailsOpen ? 300 : 0,
-                    opacity: detailsOpen ? 1 : 0,
-                    overflow: 'hidden',
-                    transition: 'max-height 240ms ease, opacity 180ms ease',
-                  }}
-                >
-                  <div style={{ paddingTop: 8 }}>
-                    <InfoRow label="Members" value={group.member_count || 1} />
-                    <InfoRow label="Class started" value={formatFriendlyDate(group.created_at)} />
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 0',
-                      }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-text-faint)' }}>
-                        Section name
-                      </span>
-                      {canEditSectionName ? (
-                        <button
-                          onClick={() => {
-                            setNewSectionName(group.name);
-                            setEditingSectionName(true);
-                            setSectionNameError(null);
-                          }}
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: 'var(--c-accent)',
-                            cursor: 'pointer',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                          }}
-                        >
-                          Edit ({2 - editCount} left)
-                        </button>
-                      ) : (
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 12.5,
-                            color: 'var(--c-text-faint)',
-                          }}
-                        >
-                          {editCount >= 2 ? '2/2 edits used' : `${editCount}/2 edits`}
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 0',
-                      }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-text-faint)' }}>
-                        Approval mode
-                      </span>
-                      <button
-                        onClick={() =>
-                          onToggleApprovalMode?.(group.approval_mode === 'auto' ? 'manual' : 'auto')
-                        }
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: 'var(--c-accent)',
-                          textTransform: 'capitalize',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {group.approval_mode} (Tap to change)
-                      </button>
-                    </div>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 0',
-                        borderTop: '1px solid var(--c-hairline)',
-                        marginTop: 4,
-                      }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--c-danger)' }}>
-                        Delete Class
-                      </span>
-                      <button
-                        onClick={onDeleteGroup}
-                        style={{
-                          fontFamily: 'var(--font-body)',
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          color: 'var(--c-danger)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5,
-                        }}
-                      >
-                        <Trash2 size={13} color="var(--c-danger)" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pending requests if manual approval */}
-                {pendingRequests.length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <button
-                      onClick={() => setPendingOpen((v) => !v)}
-                      style={{
-                        fontFamily: 'var(--font-body)',
-                        fontSize: 13,
-                        color: 'var(--c-accent)',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      <span>Pending requests ({pendingRequests.length})</span>
-                      <ChevronDown
-                        size={14}
-                        style={{
-                          transform: pendingOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 200ms ease',
-                        }}
-                      />
-                    </button>
-
-                    {pendingOpen && (
-                      <div style={{ marginTop: 8, padding: '4px 0' }}>
-                        {pendingRequests.map((req) => (
-                          <div
-                            key={req.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '8px 0',
-                              borderBottom: '1px solid var(--c-hairline)',
-                            }}
-                          >
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--c-text)' }}>
-                              {req.username}
-                            </span>
-                            <div style={{ display: 'flex', gap: 10 }}>
-                              <button
-                                onClick={() => store.respondToJoinRequest(req.id, true)}
-                                style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--c-accent)' }}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => store.respondToJoinRequest(req.id, false)}
-                                style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--c-danger)' }}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+          <div style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--c-text-faint)' }}>
+            Developed with ❤️ for DIU Students
           </div>
-        ) : (
+        </div>
+      </Sheet>
+
+      {/* ========================================================
+          SHEET: CONTACT DEVELOPER
+          ======================================================== */}
+      <Sheet open={contactSheetOpen} onClose={() => setContactSheetOpen(false)}>
+        <div style={{ padding: '8px 20px 32px' }}>
           <div
             style={{
-              background: 'var(--c-card-bg)',
-              borderRadius: 16,
-              border: '1px solid var(--c-hairline)',
-              padding: '16px 18px',
-            }}
-          >
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--c-text-soft)', margin: '0 0 12px' }}>
-              You are not enrolled in any class.
-            </p>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <button
-                onClick={onJoinClick}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--c-accent)',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Join with code
-              </button>
-              <span style={{ color: 'var(--c-text-faint)' }}>·</span>
-              <button
-                onClick={onCreateClassClick}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 13,
-                  color: 'var(--c-text-soft)',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Create class
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 2. Appearance Section */}
-      <div style={{ marginTop: 24 }}>
-        <h2
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--c-text-faint)',
-            margin: '0 0 8px 4px',
-          }}
-        >
-          Appearance
-        </h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[
-            { key: 'system' as const, label: 'System', icon: Laptop },
-            { key: 'light' as const, label: 'Light', icon: Sun },
-            { key: 'dark' as const, label: 'Dark', icon: Moon },
-          ].map((item) => {
-            const isSelected = themePreference === item.key;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                onClick={() => onThemeChange(item.key)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '12px 8px',
-                  borderRadius: 14,
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  fontWeight: isSelected ? 600 : 500,
-                  background: isSelected ? 'var(--c-accent-bg)' : 'var(--c-card-bg)',
-                  border: `1px solid ${isSelected ? 'var(--c-accent)' : 'var(--c-hairline)'}`,
-                  color: isSelected ? 'var(--c-accent)' : 'var(--c-text-soft)',
-                  cursor: 'pointer',
-                  transition: 'all 160ms ease',
-                }}
-              >
-                <Icon size={20} style={{ marginBottom: 4 }} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Push Notifications Section */}
-      <div style={{ marginTop: 24 }}>
-        <h2
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--c-text-faint)',
-            margin: '0 0 8px 4px',
-          }}
-        >
-          Push Notifications
-        </h2>
-        <div
-          style={{
-            background: 'var(--c-card-bg)',
-            borderRadius: 16,
-            border: '1px solid var(--c-hairline)',
-            padding: '14px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Bell size={18} color={notificationPermission === 'granted' ? 'var(--c-accent)' : 'var(--c-text-faint)'} />
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--c-text)' }}>
-              {notificationPermission === 'granted'
-                ? hasFcmToken
-                  ? 'FCM push notifications active'
-                  : 'Browser notifications allowed'
-                : 'Enable push notifications'}
-            </span>
-          </div>
-          <button
-            onClick={onEnableNotifications}
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: notificationPermission === 'granted' ? 'var(--c-success)' : 'var(--c-accent)',
-              padding: '4px 8px',
-              cursor: 'pointer',
-              border: 'none',
-              background: 'transparent',
-            }}
-          >
-            {notificationPermission === 'granted' ? 'Active' : 'Enable'}
-          </button>
-        </div>
-      </div>
-
-      {/* 4. Follow The Creator Section */}
-      <div style={{ marginTop: 24 }}>
-        <h2
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--c-text-faint)',
-            margin: '0 0 8px 4px',
-          }}
-        >
-          Follow the Creator
-        </h2>
-        <div
-          style={{
-            background: 'var(--c-card-bg)',
-            borderRadius: 16,
-            border: '1px solid var(--c-hairline)',
-            padding: '18px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-          }}
-        >
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              color: 'var(--c-text)',
-              margin: '0 0 16px',
-            }}
-          >
-            Connect with the development team!
-          </p>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
-            {/* GitHub */}
-            <a
-              href="https://github.com/realutsha"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  background: 'var(--c-text)',
-                  color: 'var(--c-card-bg)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-              </div>
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--c-accent)' }}>
-                GitHub
-              </span>
-            </a>
-
-            {/* Facebook */}
-            <a
-              href="https://www.facebook.com/realutsha"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  background: 'var(--c-text)',
-                  color: 'var(--c-card-bg)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-              </div>
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--c-accent)' }}>
-                Facebook
-              </span>
-            </a>
-
-            {/* Instagram */}
-            <a
-              href="https://www.instagram.com/realutsha"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  border: '2px solid var(--c-text)',
-                  color: 'var(--c-text)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                </svg>
-              </div>
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--c-accent)' }}>
-                Instagram
-              </span>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* 5. Danger Zone Actions */}
-      <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid var(--c-hairline)' }}>
-        {group && (
-          <button
-            onClick={onLeave}
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--c-danger)',
-              padding: '8px 0',
-              display: 'block',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-              border: 'none',
-              background: 'transparent',
-            }}
-          >
-            Leave class
-          </button>
-        )}
-        {group && isCR && (
-          <button
-            onClick={onDeleteGroup}
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--c-danger)',
-              padding: '8px 0',
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-              marginBottom: 10,
-              border: 'none',
-              background: 'transparent',
+              justifyContent: 'space-between',
+              paddingBottom: 14,
+              borderBottom: '1px solid var(--c-hairline)',
+              marginBottom: 18,
             }}
           >
-            <Trash2 size={15} color="var(--c-danger)" />
-            <span>Delete Group</span>
-          </button>
-        )}
-        <div style={{ marginTop: group ? 12 : 4 }}>
-          <LogoutButton onClick={onLogout} />
+            <h2
+              style={{
+                fontFamily: 'var(--font-head)',
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--c-text)',
+                margin: 0,
+              }}
+            >
+              Contact Developer
+            </h2>
+            <button
+              type="button"
+              onClick={() => setContactSheetOpen(false)}
+              style={{
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: 'var(--c-accent)',
+                padding: '4px 8px',
+                cursor: 'pointer',
+              }}
+            >
+              Done
+            </button>
+          </div>
+
+          <div style={{ padding: '4px 0 16px' }}>
+            <p
+              style={{
+                fontSize: 14,
+                color: 'var(--c-text-soft)',
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              Have feedback, found a bug, or want to suggest a new feature? Feel free to reach out
+              directly:
+            </p>
+          </div>
+
+          <SettingsCard>
+            <SettingsRow
+              icon={<Mail size={16} />}
+              title="Send an Email"
+              subtitle="madhurzamutsha@gmail.com"
+              onClick={() => {
+                window.location.href = 'mailto:madhurzamutsha@gmail.com?subject=ClassMate%20Feedback';
+              }}
+              rightElement={<ExternalLink size={16} color="var(--c-text-faint)" />}
+            />
+
+            <RowDivider />
+
+            <SettingsRow
+              icon={<Send size={16} />}
+              title="GitHub"
+              subtitle="@realutsha"
+              onClick={() => {
+                window.open('https://github.com/realutsha', '_blank', 'noopener,noreferrer');
+              }}
+              rightElement={<ExternalLink size={16} color="var(--c-text-faint)" />}
+            />
+
+            <RowDivider />
+
+            <SettingsRow
+              icon={<Users size={16} />}
+              title="Facebook"
+              subtitle="Connect on Facebook"
+              onClick={() => {
+                window.open('https://www.facebook.com/realutsha', '_blank', 'noopener,noreferrer');
+              }}
+              rightElement={<ExternalLink size={16} color="var(--c-text-faint)" />}
+            />
+          </SettingsCard>
         </div>
-      </div>
+      </Sheet>
     </main>
   );
 }
